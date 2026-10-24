@@ -6995,8 +6995,8 @@ function drawPart10() {
   text('PORTAL = TEIL 9 · A/D = LAUFEN · H = TEIL 1', VW / 2, 212, 8, '#fff7e0', 'center', '#000');
 }
 // ============================================================ Bonus-Spiel „Unter Kürbissen“ (inspiriert von Among Us)
-// Du bist ein Kürbis in der Crew eines Raumschiffs. Einer der anderen ist heimlich der Verräter und knockt Crewmitglieder aus.
-// Erledige deine Aufgaben, melde ausgeknockte Kürbisse und stimme den Verräter raus!
+// Du bist ein Kürbis in der Crew eines Raumschiffs. Einer ist heimlich der Mörder und kriecht durch die Schächte – oder du bist es selbst.
+// Erledige Aufgaben, melde Leichen und stimme den Mörder raus – oder sei selbst der Mörder!
 const AU_ROOMS = [
   { n: 'CAFETERIA', node: 'caf', x: 220, y: 20, w: 200, h: 120, a: '#5a6a8a', b: '#52627e' },
   { n: 'KRANKENSTATION', node: 'med', x: 40, y: 20, w: 130, h: 100, a: '#c8d0dc', b: '#bcc4d0' },
@@ -7033,63 +7033,95 @@ function auPath(from, to) {                                          // kürzest
   return path;
 }
 function auNearestNode(x, y) { let best = 'caf', d = 1e9; for (const k in AU_NODES) { const [nx, ny] = AU_NODES[k], dd = Math.hypot(nx - x, ny - y); if (dd < d) { d = dd; best = k; } } return best; }
+// Schächte: der Mörder kann hineinklettern und im Kreis zum nächsten Schacht kriechen
+const AU_VENTS = [{ x: 240, y: 126, r: 'CAFETERIA' }, { x: 150, y: 104, r: 'KRANKENSTATION' }, { x: 130, y: 252, r: 'REAKTOR' }, { x: 284, y: 386, r: 'ELEKTRIK' }, { x: 466, y: 316, r: 'LAGER' }, { x: 540, y: 254, r: 'NAVIGATION' }];
+const auNearVent = (x, y, d) => AU_VENTS.findIndex(v => Math.hypot(v.x - x, v.y - y) < d);
+const auClosestVent = (x, y) => AU_VENTS.reduce((bi, v, i) => Math.hypot(v.x - x, v.y - y) < Math.hypot(AU_VENTS[bi].x - x, AU_VENTS[bi].y - y) ? i : bi, 0);
+const AU_ROLE = [{ x: 92, y: 132, w: 90, h: 20 }, { x: 202, y: 132, w: 90, h: 20 }];
 function openAU() {
   if (!auOpen()) { SFX.bump(); if (G.p10) G.p10.auLock = G.t; return; }
   const imp = Math.floor(Math.random() * AU_COLS.length);
   const crew = AU_COLS.map(([name, col], i) => {
     const a = i / AU_COLS.length * Math.PI * 2;
-    return { name, col, x: 320 + Math.cos(a) * 50, y: 82 + Math.sin(a) * 30, imp: i === imp, dead: false, path: [], wait: 1 + Math.random() * 2, log: [], killCd: 20, face: 1, anim: 0 };
+    return { name, col, x: 320 + Math.cos(a) * 50, y: 82 + Math.sin(a) * 30, imp: i === imp, dead: false, path: [], wait: 1 + Math.random() * 2, log: [], killCd: 14, face: 1, anim: 0 };
   });
-  G.au = { phase: 'intro', t: 0, introT: 3, p: { x: 320, y: 120, face: 1, anim: 0 }, crew, bodies: [], kills: [], tasks: AU_TASKS.map(() => false), bar: 0, aiBar: 0,
-    btnUsed: false, task: null, meet: null, eject: null, cam: [0, 0], logT: 0, msg: null };
+  G.au = { phase: 'intro', t: 0, p: { x: 320, y: 120, face: 1, anim: 0, log: [], vent: -1 }, crew, bodies: [], kills: [], tasks: AU_TASKS.map(() => false), bar: 0, aiBar: 0,
+    btnUsed: false, task: null, meet: null, eject: null, cam: [0, 0], logT: 0, msg: null, msgT: 0, pImp: false, killCd: 10 };
   G.state = 'au'; G.stateT = 0; form.hidden = true; homeBtn.hidden = false;
   [220, 262, 330, 262, 196].forEach((f, i) => tone(f, f, 0.22, 'triangle', 0.05, i * 0.18));
 }
+function auSetRole(role) {                                           // 'crew', 'imp' oder Zufall
+  const A = G.au; if (A.phase !== 'intro') return;
+  if (!role) role = Math.random() < 0.3 ? 'imp' : 'crew';
+  A.pImp = role === 'imp';
+  if (A.pImp) A.crew.forEach(c => c.imp = false);                    // dann bist DU der einzige Mörder
+  A.phase = 'role'; A.t = 0;
+  if (A.pImp) [196, 147, 110].forEach((f, i) => tone(f, f * 0.9, 0.3, 'sawtooth', 0.04, i * 0.25)); else SFX.coin();
+}
+const auPName = () => G.name.toUpperCase();
+const auImp = () => G.au.crew.find(c => c.imp);
 function auAlive() { return G.au.crew.filter(c => !c.dead); }
 function auEnd(win, why) {
-  const A = G.au; A.phase = 'end'; A.win = win; A.why = why; A.t = 0;
+  const A = G.au; A.phase = 'end'; A.win = win; A.why = why; A.t = 0; A.p.vent = -1;
   if (win) { store.wallet = wallet() + 50; store.auWins = (store.auWins || 0) + 1; saveStore(); SFX.clear(); } else SFX.die();
 }
 function auCheck() {
-  const A = G.au, alive = auAlive(), imp = A.crew.find(c => c.imp);
-  if (imp.dead) { auEnd(true, `${imp.name} WAR DER VERRÄTER!`); return true; }
+  const A = G.au, alive = auAlive();
+  if (A.pImp) {
+    if (alive.length <= 1) { auEnd(true, 'DU WARST DER MÖRDER UND HAST GEWONNEN!'); return true; }
+    if (A.bar >= 100) { auEnd(false, 'DIE CREW HAT ALLE AUFGABEN ERLEDIGT.'); return true; }
+    return false;
+  }
+  const imp = auImp();
+  if (imp.dead) { auEnd(true, `${imp.name} WAR DER MÖRDER!`); return true; }
   if (A.bar >= 100) { auEnd(true, 'ALLE AUFGABEN ERLEDIGT!'); return true; }
-  if (alive.filter(c => !c.imp).length + 1 <= 1) { auEnd(false, `${imp.name} WAR DER VERRÄTER UND HAT GEWONNEN.`); return true; }
+  if (alive.filter(c => !c.imp).length + 1 <= 1) { auEnd(false, `${imp.name} WAR DER MÖRDER UND HAT GEWONNEN.`); return true; }
   return false;
 }
 const AU_IN = { CAFETERIA: 'IN DER CAFETERIA', KRANKENSTATION: 'IN DER KRANKENSTATION', REAKTOR: 'IM REAKTOR', ELEKTRIK: 'IN DER ELEKTRIK', LAGER: 'IM LAGER', NAVIGATION: 'IN DER NAVIGATION', GANG: 'IM GANG' };
 function auStartMeeting(reason, reporter, body) {
-  const A = G.au, imp = A.crew.find(c => c.imp), kill = body ? A.kills.find(k => k.victim === body.name) : null, lines = [];
-  if (reason === 'body') lines.push(`${reporter}: ICH HABE ${body.name} ${AU_IN[body.room]} GEFUNDEN!`);
+  const A = G.au, kill = body ? A.kills.find(k => k.victim === body.name) : null, lines = [];
+  const killer = A.pImp ? A.p : auImp(), kName = A.pImp ? auPName() : killer.name;
+  if (reason === 'body') lines.push(`${reporter}: ICH HABE DIE LEICHE VON ${body.name} ${AU_IN[body.room]} GEFUNDEN!`);
   else lines.push(`${reporter}: NOTFALL-TREFFEN!`);
-  const rooms = AU_ROOMS.map(r => r.n);
-  const extra = [];
+  const rooms = AU_ROOMS.map(r => r.n), extra = [];
+  let accuse = null;
   for (const c of auAlive()) {
     const roomAt = t => { let r = 'GANG'; for (const [lt, lr] of c.log) { if (lt > t) break; r = lr; } return r; };
+    if (c.imp) {
+      // der Computer-Mörder lügt geschickt: er nennt einen Raum, in dem wirklich jemand war, und beschuldigt manchmal andere
+      const others = auAlive().filter(o => !o.imp);
+      const fake = kill && others.length ? others[Math.floor(Math.random() * others.length)] : null;
+      const fr = fake ? (() => { let r = 'GANG'; for (const [lt, lr] of fake.log) { if (lt > kill.t) break; r = lr; } return r; })() : null;
+      const lie = fr && fr !== kill.room ? fr : rooms.filter(r => !kill || r !== kill.room)[Math.floor(Math.random() * 5)];
+      lines.push(`${c.name}: ICH WAR ${AU_IN[lie]}${fake && fr === lie ? ` MIT ${fake.name}` : ''}.`);
+      if (others.length && Math.random() < 0.45) { accuse = others[Math.floor(Math.random() * others.length)].name; extra.unshift(`${c.name}: ICH GLAUBE, ${accuse} WAR ES!`); }
+      continue;
+    }
     if (kill) {
-      if (c.imp) { const lie = rooms.filter(r => r !== kill.room)[Math.floor(Math.random() * 5)]; lines.push(`${c.name}: ICH WAR ${AU_IN[lie]}.`); }
-      else {
-        const where = roomAt(kill.t); lines.push(`${c.name}: ICH WAR ${AU_IN[where]}.`);
-        // hat dieses Crewmitglied den Verräter kurz vorher gesehen?
-        const saw = c.log.find(([lt, lr]) => lt >= kill.t - 10 && lt <= kill.t && lr !== 'GANG' && imp.log.some(([it, ir]) => Math.abs(it - lt) < 0.6 && ir === lr));
-        if (saw) { extra.push(`${c.name}: ICH HABE ${imp.name} ${AU_IN[saw[1]]} GESEHEN!`); c.sus = imp.name; }
-      }
+      const where = roomAt(kill.t); lines.push(`${c.name}: ICH WAR ${AU_IN[where]}.`);
+      // hat dieses Crewmitglied den Mörder kurz vorher gesehen? (manchmal passen sie nicht auf)
+      const saw = c.log.find(([lt, lr]) => lt >= Math.max(kill.t - 10, (A.roundT || 0) + 5) && lt <= kill.t && lr === kill.room && killer.log.some(([it, ir]) => Math.abs(it - lt) < 0.6 && ir === lr));
+      if (saw && Math.random() < 0.6) { extra.push(`${c.name}: ICH HABE ${kName} ${AU_IN[saw[1]]} GESEHEN!`); c.sus = c.sus || kName; }
     } else lines.push(`${c.name}: ICH WAR ${AU_IN[auRoom(c.x, c.y)]}.`);
+    if (c.saw === 'kill') extra.unshift(`${c.name}: ICH HABE GESEHEN, WIE ${kName} ES WAR!`);
+    if (c.saw === 'vent') extra.unshift(`${c.name}: ${kName} IST AUS EINEM SCHACHT GEKOMMEN!`);
   }
-  lines.push(...extra.slice(0, Math.max(0, 8 - lines.length)));   // jeder sagt etwas, dann die Beobachtungen
-  A.meet = { reason, lines, vote: null, votes: null, t: 0 };
-  A.phase = 'meeting'; A.task = null; SFX.boss();
+  lines.push(...extra.slice(0, Math.max(0, 9 - lines.length)));     // jeder sagt etwas, dann die Beobachtungen
+  A.meet = { reason, lines, vote: null, votes: null, t: 0, accuse };
+  A.phase = 'meeting'; A.task = null; A.p.vent = -1; SFX.boss();
 }
 function auVote(target) {                                            // target: Name oder 'SKIP'
   const A = G.au, M = A.meet; if (M.vote) return;
   M.vote = target; M.t = 0;
-  const alive = auAlive(), names = alive.map(c => c.name).concat([G.name.toUpperCase()]);
+  const alive = auAlive(), names = alive.map(c => c.name).concat([auPName()]);
   const votes = { SKIP: 0 }; const add = n => { votes[n] = (votes[n] || 0) + 1; };
   add(target);
   for (const c of alive) {
-    if (c.imp) { add(target !== c.name && target !== 'SKIP' ? target : alive.filter(o => !o.imp)[0]?.name || 'SKIP'); continue; }
+    if (c.imp) { add(target !== c.name && target !== 'SKIP' ? target : M.accuse || alive.filter(o => !o.imp)[0]?.name || 'SKIP'); continue; }
     if (c.sus) add(c.sus);
-    else if (Math.random() < 0.45) add('SKIP');
+    else if (M.accuse && M.accuse !== c.name && Math.random() < 0.3) add(M.accuse);      // lässt sich leicht reinlegen
+    else if (Math.random() < 0.35) add('SKIP');
     else { const others = names.filter(n => n !== c.name); add(others[Math.floor(Math.random() * others.length)]); }
   }
   M.votes = votes;
@@ -7100,23 +7132,37 @@ function auVote(target) {                                            // target: 
 function auAfterMeeting() {
   const A = G.au, M = A.meet, out = M.out;
   A.eject = { name: out, t: 0 };
-  if (out === G.name.toUpperCase()) { A.eject.text = 'DU WURDEST RAUSGEWORFEN!'; }
-  else if (out !== 'SKIP') { const c = A.crew.find(c => c.name === out); c.dead = true; A.eject.col = c.col; A.eject.text = c.imp ? `${out} WAR DER VERRÄTER!` : `${out} WAR NICHT DER VERRÄTER.`; }
+  if (out === auPName()) { A.eject.col = '#f08a1c'; A.eject.text = A.pImp ? `${out} WAR DER MÖRDER!` : `${out} WAR NICHT DER MÖRDER.`; }
+  else if (out !== 'SKIP') { const c = A.crew.find(c => c.name === out); c.dead = true; A.eject.col = c.col; A.eject.text = c.imp ? `${out} WAR DER MÖRDER!` : `${out} WAR NICHT DER MÖRDER.`; }
   else A.eject.text = 'NIEMAND WURDE RAUSGEWORFEN.';
   A.phase = 'eject'; A.meet = null;
 }
 function auResume() {
   const A = G.au;
-  if (A.eject.name === G.name.toUpperCase()) { auEnd(false, 'DIE CREW HAT DICH FÜR DEN VERRÄTER GEHALTEN.'); return; }
+  if (A.eject.name === auPName()) { auEnd(false, A.pImp ? 'DIE CREW HAT DICH ERWISCHT, MÖRDER!' : 'DIE CREW HAT DICH FÜR DEN MÖRDER GEHALTEN.'); return; }
   if (auCheck()) return;
   A.bodies = []; A.phase = 'play';
-  auAlive().forEach((c, i) => { const a = i / 7 * Math.PI * 2; c.x = 320 + Math.cos(a) * 50; c.y = 82 + Math.sin(a) * 30; c.path = []; c.wait = 1 + Math.random() * 2; c.sus = null; c.killCd = Math.max(c.killCd, 18); });
-  A.p.x = 320; A.p.y = 120;
+  auAlive().forEach((c, i) => { const a = i / 7 * Math.PI * 2; c.x = 320 + Math.cos(a) * 50; c.y = 82 + Math.sin(a) * 30; c.path = []; c.wait = 1 + Math.random() * 2; c.sus = null; c.saw = null; c.reportT = 0; c.vent = null; c.ventTo = null; c.hunt = false; c.killCd = Math.max(c.killCd, 12); });
+  A.p.x = 320; A.p.y = 120; A.p.vent = -1; A.killCd = Math.max(A.killCd, 12); A.roundT = A.t;
 }
+// Wer gerade in der Nähe steht und hinschaut, bemerkt etwas (die Crew passt aber nicht immer auf)
+function auWitness(x, y, what, killer) {
+  for (const c of auAlive()) if (!c.imp && c !== killer && Math.hypot(c.x - x, c.y - y) < 90 && Math.random() < 0.5) { c.sus = killer.name || auPName(); c.saw = c.saw === 'kill' ? 'kill' : what; if (what === 'kill') c.reportT = 1 + Math.random(); }
+}
+function auKill(victim, killer) {
+  const A = G.au;
+  victim.dead = true; victim.vent = null;
+  A.bodies.push({ x: victim.x, y: victim.y, col: victim.col, name: victim.name, room: auRoom(victim.x, victim.y) });
+  A.kills.push({ t: A.t, room: auRoom(victim.x, victim.y), victim: victim.name });
+  tone(160, 60, 0.25, 'sawtooth', 0.05);
+  auWitness(victim.x, victim.y, 'kill', killer);
+}
+function auVentMsg(c, x, y) { const A = G.au; if (!A.pImp && Math.hypot(x - A.p.x, y - A.p.y) < 118) { A.msg = `DU HAST ${c.name} IN EINEM SCHACHT GESEHEN!`; A.msgT = 3; A.pSaw = c.name; } auWitness(x, y, 'vent', c); }
 function updateAU() {
   const A = G.au; if (!A) return;
-  A.t += DT;
-  if (A.phase === 'intro') { if (A.t > A.introT || pressed.enter) { A.phase = 'play'; A.t = 0; } return; }
+  A.t += DT; if (A.msgT > 0) A.msgT -= DT;
+  if (A.phase === 'intro') { if (pressed.one) auSetRole('crew'); else if (pressed.two) auSetRole('imp'); else if (pressed.enter) auSetRole(null); return; }
+  if (A.phase === 'role') { if (A.t > 2.4 || (A.t > 0.6 && pressed.enter)) { A.phase = 'play'; A.t = 0; } return; }
   if (A.phase === 'end') { if (A.t > 1 && pressed.enter) openAU(); if (pressed.esc) openPart10(); return; }
   if (A.phase === 'eject') { A.eject.t += DT; if (A.eject.t > 3.2 || (A.eject.t > 1 && pressed.enter)) auResume(); return; }
   if (A.phase === 'meeting') {
@@ -7129,70 +7175,96 @@ function updateAU() {
     return;
   }
   if (A.task) { updateAUTask(); return; }
-  // Spieler läuft (W/A/S/D oder Pfeile)
-  const P2 = A.p, sp = 1.4;
-  const mx = (K.right ? 1 : 0) - (K.left ? 1 : 0), my = (K.down ? 1 : 0) - (K.jump ? 1 : 0);
-  if (mx) P2.face = mx;
-  if (mx && auWalk(P2.x + mx * sp, P2.y)) P2.x += mx * sp;
-  if (my && auWalk(P2.x, P2.y + my * sp)) P2.y += my * sp;
-  P2.anim += (mx || my) ? 0.15 : 0;
+  const P2 = A.p;
+  if (A.pImp && A.killCd > 0) A.killCd -= DT;
+  if (P2.vent >= 0) {
+    // im Schacht: A/D = zum nächsten Schacht kriechen, E = rausklettern
+    if (pressed.left || pressed.right) { P2.vent = (P2.vent + (pressed.right ? 1 : AU_VENTS.length - 1)) % AU_VENTS.length; tone(140, 120, 0.08, 'square', 0.03); }
+    const V = AU_VENTS[P2.vent]; P2.x = V.x; P2.y = V.y;
+    if (pressed.punch) { P2.vent = -1; tone(200, 300, 0.1, 'square', 0.04); auWitness(V.x, V.y, 'vent', { name: auPName() }); }
+  } else {
+    // Spieler läuft (W/A/S/D oder Pfeile)
+    const sp = 1.4;
+    const mx = (K.right ? 1 : 0) - (K.left ? 1 : 0), my = (K.down ? 1 : 0) - (K.jump ? 1 : 0);
+    if (mx) P2.face = mx;
+    if (mx && auWalk(P2.x + mx * sp, P2.y)) P2.x += mx * sp;
+    if (my && auWalk(P2.x, P2.y + my * sp)) P2.y += my * sp;
+    P2.anim += (mx || my) ? 0.15 : 0;
+  }
   A.cam = [clamp(P2.x - VW / 2, 0, AU_W - VW), clamp(P2.y - VH / 2, 0, AU_H - VH)];
   // Computer-Crew
   A.logT -= DT;
-  const logNow = A.logT <= 0; if (logNow) A.logT = 0.5;
-  const imp = A.crew.find(c => c.imp);
+  const logNow = A.logT <= 0; if (logNow) { A.logT = 0.5; if (P2.vent < 0) P2.log.push([A.t, auRoom(P2.x, P2.y)]); }
+  const imp = auImp();
   for (const c of A.crew) {
     if (c.dead) continue;
+    if (c.vent) {                                                    // der Computer-Mörder kriecht durch die Schächte
+      c.vent.t -= DT;
+      if (c.vent.t <= 0) { const V = AU_VENTS[c.vent.to]; c.x = V.x; c.y = V.y; c.vent = null; c.path = []; c.wait = 0.3; tone(200, 300, 0.1, 'square', 0.03); auVentMsg(c, V.x, V.y); }
+      continue;
+    }
     if (logNow) c.log.push([A.t, auRoom(c.x, c.y)]);
+    if (c.reportT > 0) { c.reportT -= DT; if (c.reportT <= 0 && A.bodies.length) { auStartMeeting('body', c.name, A.bodies[A.bodies.length - 1]); return; } }
     if (c.path.length) {
       const [tx, ty] = AU_NODES[c.path[0]] || c.path[0];
-      const dx = tx - c.x, dy = ty - c.y, d = Math.hypot(dx, dy), v = c.imp && c.hunt ? 1.15 : 0.9;
-      if (d < 2) c.path.shift(); else { c.x += dx / d * v; c.y += dy / d * v; if (Math.abs(dx) > 0.5) c.face = Math.sign(dx); c.anim += 0.15; }
+      const dx = tx - c.x, dy = ty - c.y, d = Math.hypot(dx, dy), v = c.imp ? (c.hunt ? 1.35 : 0.95) : 0.8;
+      if (d < 2) c.path.shift(); else { c.x += dx / d * Math.min(v, d); c.y += dy / d * Math.min(v, d); if (Math.abs(dx) > 0.5) c.face = Math.sign(dx); c.anim += 0.15; }
       if (!c.path.length) {
-        if (c.hunt) c.hunt = false;
+        if (c.ventTo != null) {                                      // am Schacht angekommen: rein!
+          const vi = auNearVent(c.x, c.y, 6);
+          if (vi >= 0) { auVentMsg(c, c.x, c.y); c.vent = { t: 1.2, to: c.ventTo }; } c.ventTo = null; c.hunt = false;
+        } else if (c.hunt) c.hunt = false;
         else if (!c.local) { const r = AU_ROOMS.find(r => r.node === c.node); c.local = true; if (r) c.path = [[r.x + 15 + Math.random() * (r.w - 30), r.y + 18 + Math.random() * (r.h - 30)]]; }
-        else { c.local = false; c.wait = 2 + Math.random() * 3; c.doing = !c.imp; }   // angekommen: Aufgabe machen
+        else { c.local = false; c.wait = 2.5 + Math.random() * 4; c.doing = !c.imp; }   // angekommen: Aufgabe machen
       }
     } else if (c.wait > 0) {
       c.wait -= DT;
-      if (c.wait <= 0 && c.doing && !c.imp) { A.aiBar = Math.min(40, A.aiBar + 1.5); c.doing = false; }
+      if (c.wait <= 0 && c.doing && !c.imp) { A.aiBar = Math.min(A.pImp ? 100 : 40, A.aiBar + 1); c.doing = false; }
     } else {
       const here = auNearestNode(c.x, c.y), rooms = AU_ROOMS.filter(r => r.node !== here), r = rooms[Math.floor(Math.random() * rooms.length)];
       c.node = r.node; c.path = auPath(here, r.node).slice(1); c.local = false;
     }
   }
-  // der Verräter jagt allein stehende Crewmitglieder
-  if (imp.killCd > 0 && imp.killCd - DT <= 0) imp.huntPlayer = Math.random() < 0.35;   // nur manchmal hat er es auf dich abgesehen
-  imp.killCd -= DT;
-  if (!imp.dead && imp.killCd <= 0 && A.t > 12) {
-    const alone = c => auAlive().filter(o => o !== c && o !== imp && Math.hypot(o.x - c.x, o.y - c.y) < 130).length === 0;
-    const pd = (x, y) => Math.hypot(A.p.x - x, A.p.y - y);
-    const victim = auAlive().filter(c => !c.imp && alone(c) && pd(c.x, c.y) > 150).sort((a, b) => Math.hypot(a.x - imp.x, a.y - imp.y) - Math.hypot(b.x - imp.x, b.y - imp.y))[0];
-    if (victim) {
-      const d = Math.hypot(victim.x - imp.x, victim.y - imp.y);
-      if (d < 14) {
-        victim.dead = true; A.bodies.push({ x: victim.x, y: victim.y, col: victim.col, name: victim.name, room: auRoom(victim.x, victim.y) });
-        A.kills.push({ t: A.t, room: auRoom(victim.x, victim.y), victim: victim.name });
-        imp.killCd = 24 + Math.random() * 8; imp.hunt = false; imp.path = []; imp.wait = 0.5;
-        if (auCheck()) return;
-      } else if (!imp.hunt || Math.random() < 0.02) { imp.hunt = true; imp.path = [[victim.x, victim.y]]; if (d > 60) imp.path = auPath(auNearestNode(imp.x, imp.y), auNearestNode(victim.x, victim.y)).slice(1).concat([[victim.x, victim.y]]); }
+  if (imp && !imp.dead && !imp.vent) {
+    // der Computer-Mörder jagt allein stehende Crewmitglieder und nimmt Abkürzungen durch die Schächte
+    if (imp.killCd > 0 && imp.killCd - DT <= 0) imp.huntPlayer = Math.random() < 0.5;
+    imp.killCd -= DT;
+    const goVent = to => { const vi = auClosestVent(imp.x, imp.y); if (vi === to) return false; const V = AU_VENTS[vi]; if (Math.hypot(V.x - imp.x, V.y - imp.y) > 70) return false; imp.path = [[V.x, V.y]]; imp.ventTo = to; imp.hunt = true; return true; };
+    if (imp.killCd <= 0 && A.t > 8 && imp.ventTo == null) {
+      const alone = c => auAlive().filter(o => o !== c && o !== imp && Math.hypot(o.x - c.x, o.y - c.y) < 100).length === 0;
+      const pd = (x, y) => Math.hypot(A.p.x - x, A.p.y - y);
+      const victim = auAlive().filter(c => !c.imp && alone(c) && pd(c.x, c.y) > 130).sort((a, b) => Math.hypot(a.x - imp.x, a.y - imp.y) - Math.hypot(b.x - imp.x, b.y - imp.y))[0];
+      if (victim) {
+        const d = Math.hypot(victim.x - imp.x, victim.y - imp.y);
+        if (d < 14) {
+          auKill(victim, imp);
+          imp.killCd = 16 + Math.random() * 6; imp.hunt = false; imp.path = []; imp.wait = 0.3;
+          if (auCheck()) return;
+          if (Math.random() < 0.7) { const vi = auClosestVent(imp.x, imp.y); goVent((vi + 2 + Math.floor(Math.random() * 3)) % AU_VENTS.length); }   // Flucht durch den Schacht
+        } else if (d > 150 && goVent(auClosestVent(victim.x, victim.y))) { /* Abkürzung */ }
+        else if (!imp.hunt || Math.random() < 0.02) { imp.hunt = true; imp.path = [[victim.x, victim.y]]; if (d > 60) imp.path = auPath(auNearestNode(imp.x, imp.y), auNearestNode(victim.x, victim.y)).slice(1).concat([[victim.x, victim.y]]); }
+      }
+      // ganz allein mit dir? Dann bist du dran!
+      const pAlone = auAlive().filter(o => !o.imp && Math.hypot(o.x - A.p.x, o.y - A.p.y) < 110).length === 0;
+      if (A.t > 30 && imp.huntPlayer && pAlone && Math.hypot(imp.x - A.p.x, imp.y - A.p.y) < 16) { auEnd(false, `${imp.name} WAR DER MÖRDER UND HAT DICH ERWISCHT!`); return; }
+      if (A.t > 30 && imp.huntPlayer && pAlone && !victim && Math.hypot(imp.x - A.p.x, imp.y - A.p.y) < 130) { imp.hunt = true; imp.path = [[A.p.x, A.p.y]]; }
     }
-    // ganz allein mit dir? Dann bist du dran!
-    const pAlone = auAlive().filter(o => !o.imp && Math.hypot(o.x - A.p.x, o.y - A.p.y) < 130).length === 0;
-    if (A.t > 40 && imp.huntPlayer && pAlone && Math.hypot(imp.x - A.p.x, imp.y - A.p.y) < 16) { auEnd(false, `${imp.name} WAR DER VERRÄTER UND HAT DICH AUSGEKNOCKT!`); return; }
-    if (A.t > 40 && imp.huntPlayer && pAlone && !victim && Math.hypot(imp.x - A.p.x, imp.y - A.p.y) < 120) { imp.hunt = true; imp.path = [[A.p.x, A.p.y]]; }
   }
-  // Computer-Crewmitglieder finden ausgeknockte Kürbisse
-  for (const c of auAlive()) if (!c.imp) for (const b of A.bodies) if (Math.hypot(c.x - b.x, c.y - b.y) < 34) { auStartMeeting('body', c.name, b); return; }
-  A.bar = Math.min(100, A.tasks.filter(Boolean).length * 10 + A.aiBar);
+  // Computer-Crewmitglieder finden Leichen (aber nicht immer sofort)
+  for (const c of auAlive()) if (!c.imp && !c.vent) for (const b of A.bodies) if (Math.hypot(c.x - b.x, c.y - b.y) < 24 && Math.random() < 0.05) { auStartMeeting('body', c.name, b); return; }
+  A.bar = Math.min(100, (A.pImp ? 0 : A.tasks.filter(Boolean).length * 10) + A.aiBar);
   if (auCheck()) return;
-  // E = benutzen / melden / Notfall-Knopf
-  if (pressed.punch) {
+  // E = benutzen / melden / Notfall-Knopf (als Mörder: töten / Schacht)
+  if (pressed.punch && P2.vent < 0) {
     const body = A.bodies.find(b => Math.hypot(b.x - P2.x, b.y - P2.y) < 24);
-    const ti = AU_TASKS.findIndex((t, i) => !A.tasks[i] && Math.hypot(t.x - P2.x, t.y - P2.y) < 20);
-    if (body) auStartMeeting('body', G.name.toUpperCase(), body);
+    const prey = A.pImp && A.killCd <= 0 ? auAlive().find(c => !c.vent && Math.hypot(c.x - P2.x, c.y - P2.y) < 20) : null;
+    const vi = A.pImp ? auNearVent(P2.x, P2.y, 14) : -1;
+    const ti = A.pImp ? -1 : AU_TASKS.findIndex((t, i) => !A.tasks[i] && Math.hypot(t.x - P2.x, t.y - P2.y) < 20);
+    if (prey) { auKill(prey, { name: auPName() }); A.killCd = 15; if (auCheck()) return; }
+    else if (vi >= 0) { P2.vent = vi; tone(200, 120, 0.12, 'square', 0.04); auWitness(P2.x, P2.y, 'vent', { name: auPName() }); }
+    else if (body) auStartMeeting('body', auPName(), body);
     else if (ti >= 0) auOpenTask(ti);
-    else if (!A.btnUsed && Math.hypot(AU_BTN.x - P2.x, AU_BTN.y - P2.y) < 22) { A.btnUsed = true; auStartMeeting('button', G.name.toUpperCase(), null); }
+    else if (!A.btnUsed && Math.hypot(AU_BTN.x - P2.x, AU_BTN.y - P2.y) < 22) { A.btnUsed = true; auStartMeeting('button', auPName(), null); }
   }
 }
 // ---------- Aufgaben (kleine Minispiele)
@@ -7240,6 +7312,7 @@ function auClick(pt) {
     return;
   }
   if (A.phase === 'end') { openAU(); return; }
+  if (A.phase === 'intro') { AU_ROLE.forEach((r, i) => { if (inBox(pt, r)) auSetRole(i ? 'imp' : 'crew'); }); return; }
   const t = A.task; if (!t) return;
   if (t.type === 'wires') {
     for (let n = 0; n < 4; n++) {
@@ -7256,10 +7329,9 @@ const AU_SKIP = { x: 296, y: 182, w: 76, h: 18 };
 function drawCrewmate(x, y, col, face, walk, dead) {
   x = Math.round(x); y = Math.round(y);
   const dk = lerpColor(col, '#000000', 0.35);
-  if (dead) {                                                        // ausgeknockt: liegt da mit X-Augen und Sternchen
+  if (dead) {                                                        // Leiche: liegt flach da mit X-Augen
     rect(x - 8, y - 6, 13, 6, col); rect(x - 10, y - 5, 3, 4, dk); rect(x + 4, y - 9, 8, 8, '#f08a1c'); rect(x + 7, y - 11, 2, 2, '#3f7d20');
     text('x', x + 6, y - 9, 8, '#3a1a05', 'center', null); text('x', x + 10, y - 9, 8, '#3a1a05', 'center', null);
-    for (let i = 0; i < 3; i++) { const a = G.t * 1.5 + i * 2.1; rect(x + 8 + Math.cos(a) * 7, y - 14 + Math.sin(a) * 2, 2, 2, '#ffd23f'); }
     return;
   }
   const st = walk ? Math.floor(walk) % 2 : 0;
@@ -7291,35 +7363,60 @@ function drawAU() {
   for (let i = 0; i < 4; i++) rect(190 + i * 26, 306, 18, 22, '#3a3a2a');                                               // Schaltkästen
   for (let i = 0; i < 5; i++) rect(350 + (i % 3) * 40, 320 + Math.floor(i / 3) * 40, 26, 22, '#9a6a3a');                // Kisten
   rect(600, 170, 26, 90, '#0a1a3a'); for (let i = 0; i < 12; i++) rect(602 + (i * 7) % 22, 174 + (i * 13) % 82, 1, 1, '#ffffff');   // Fenster mit Sternen
+  // Schächte
+  AU_VENTS.forEach((v, i) => { rect(v.x - 8, v.y - 5, 16, 10, '#2a2a34'); rect(v.x - 7, v.y - 4, 14, 8, A.p.vent === i ? '#5a2a2a' : '#4a4a58'); for (let k = 0; k < 4; k++) rect(v.x - 6 + k * 4, v.y - 3, 2, 6, '#1a1a22'); });
   // Aufgaben-Stationen (leuchten ruhig gelb)
-  AU_TASKS.forEach((t, i) => { if (A.tasks[i]) return; ctx.globalAlpha = 0.35 + 0.15 * Math.sin(G.t * 2); rect(t.x - 7, t.y - 7, 14, 14, '#ffd23f'); ctx.globalAlpha = 1; rect(t.x - 4, t.y - 4, 8, 8, '#c89a20'); });
+  AU_TASKS.forEach((t, i) => { if (A.tasks[i] || A.pImp) return; ctx.globalAlpha = 0.35 + 0.15 * Math.sin(G.t * 2); rect(t.x - 7, t.y - 7, 14, 14, '#ffd23f'); ctx.globalAlpha = 1; rect(t.x - 4, t.y - 4, 8, 8, '#c89a20'); });
   // Figuren (nur im Sichtfeld)
   const seen = (x, y) => Math.hypot(x - A.p.x, y - A.p.y) < 118;
   for (const b of A.bodies) if (seen(b.x, b.y)) drawCrewmate(b.x, b.y, b.col, 1, 0, true);
-  for (const c of A.crew) if (!c.dead && seen(c.x, c.y)) { drawCrewmate(c.x, c.y, c.col, c.face, c.path.length ? c.anim : 0); text(c.name, c.x, c.y - 30, 8, '#ffffff', 'center', '#000'); }
-  drawCrewmate(A.p.x, A.p.y, '#f08a1c', A.p.face, A.p.anim); text(G.name.toUpperCase(), A.p.x, A.p.y - 30, 8, '#ffd23f', 'center', '#000');
+  for (const c of A.crew) if (!c.dead && !c.vent && seen(c.x, c.y)) { drawCrewmate(c.x, c.y, c.col, c.face, c.path.length ? c.anim : 0); text(c.name, c.x, c.y - 30, 8, '#ffffff', 'center', '#000'); }
+  if (A.p.vent < 0) { drawCrewmate(A.p.x, A.p.y, '#f08a1c', A.p.face, A.p.anim); text(G.name.toUpperCase(), A.p.x, A.p.y - 30, 8, A.pImp ? '#ff5a4a' : '#ffd23f', 'center', '#000'); }
+  else { rect(A.p.x - 3, A.p.y - 2, 2, 2, '#ffd23f'); rect(A.p.x + 1, A.p.y - 2, 2, 2, '#ffd23f'); }   // nur deine Augen gucken aus dem Schacht
   ctx.restore();
   // Sichtweite: um dich herum hell, weiter weg dunkel
   const px = A.p.x - cx, py = A.p.y - cy - 8, gr = ctx.createRadialGradient(px, py, 70, px, py, 125);
   gr.addColorStop(0, 'rgba(6,6,16,0)'); gr.addColorStop(1, 'rgba(6,6,16,0.9)'); ctx.fillStyle = gr; ctx.fillRect(0, 0, VW, VH);
   // Anzeige: Aufgabenbalken, Liste, Raumname, Hinweise
-  rect(80, 4, 224, 12, 'rgba(10,6,16,.75)'); rect(82, 6, Math.round(220 * A.bar / 100), 8, '#6dd64a'); text(`AUFGABEN ${Math.round(A.bar)}%`, VW / 2, 6, 8, '#ffffff', 'center', null);
-  rect(4, 20, 100, 8 + AU_TASKS.length * 10, 'rgba(10,6,16,.7)');
-  AU_TASKS.forEach((t, i) => text((A.tasks[i] ? '✓ ' : '· ') + t.n, 7, 23 + i * 10, 8, A.tasks[i] ? '#6dd64a' : '#fff7e0', 'left', null));
+  rect(80, 4, 224, 12, 'rgba(10,6,16,.75)'); rect(82, 6, Math.round(220 * A.bar / 100), 8, '#6dd64a'); text(`${A.pImp ? 'CREW-' : ''}AUFGABEN ${Math.round(A.bar)}%`, VW / 2, 6, 8, '#ffffff', 'center', null);
+  if (A.pImp) {
+    rect(4, 20, 112, 38, 'rgba(10,6,16,.7)');
+    text('DU BIST DER MÖRDER!', 7, 23, 8, '#ff5a4a', 'left', null);
+    text(`KILL: ${A.killCd > 0 ? Math.ceil(A.killCd) + ' S' : 'BEREIT!'}`, 7, 34, 8, A.killCd > 0 ? '#b5a5bf' : '#ff8a6a', 'left', null);
+    text(`CREW ÜBRIG: ${auAlive().length}`, 7, 45, 8, '#fff7e0', 'left', null);
+  } else {
+    rect(4, 20, 100, 8 + AU_TASKS.length * 10, 'rgba(10,6,16,.7)');
+    AU_TASKS.forEach((t, i) => text((A.tasks[i] ? '✓ ' : '· ') + t.n, 7, 23 + i * 10, 8, A.tasks[i] ? '#6dd64a' : '#fff7e0', 'left', null));
+  }
   text(auRoom(A.p.x, A.p.y), VW / 2, VH - 12, 8, '#9ad0ff', 'center', '#000');
   if (A.phase === 'play' && !A.task) {
-    const near = A.bodies.some(b => Math.hypot(b.x - A.p.x, b.y - A.p.y) < 24) ? 'E = AUSGEKNOCKTEN KÜRBIS MELDEN!' : AU_TASKS.some((t, i) => !A.tasks[i] && Math.hypot(t.x - A.p.x, t.y - A.p.y) < 20) ? 'E = AUFGABE STARTEN' : !A.btnUsed && Math.hypot(AU_BTN.x - A.p.x, AU_BTN.y - A.p.y) < 22 ? 'E = NOTFALL-TREFFEN (1x)' : null;
+    const near = A.p.vent >= 0 ? 'A/D = NÄCHSTER SCHACHT · E = RAUSKLETTERN'
+      : A.pImp && A.killCd <= 0 && auAlive().some(c => !c.vent && Math.hypot(c.x - A.p.x, c.y - A.p.y) < 20) ? 'E = KILL!'
+      : A.pImp && auNearVent(A.p.x, A.p.y, 14) >= 0 ? 'E = IN DEN SCHACHT'
+      : A.bodies.some(b => Math.hypot(b.x - A.p.x, b.y - A.p.y) < 24) ? 'E = LEICHE MELDEN!' : !A.pImp && AU_TASKS.some((t, i) => !A.tasks[i] && Math.hypot(t.x - A.p.x, t.y - A.p.y) < 20) ? 'E = AUFGABE STARTEN' : !A.btnUsed && Math.hypot(AU_BTN.x - A.p.x, AU_BTN.y - A.p.y) < 22 ? 'E = NOTFALL-TREFFEN (1x)' : null;
     if (near) text(near, VW / 2, VH - 26, 8, '#ffd23f', 'center', '#000');
+    if (A.msgT > 0 && A.msg) text(A.msg, VW / 2, 20, 8, '#ff8a6a', 'center', '#000');
   }
   if (A.task) drawAUTask();
-  if (A.phase === 'intro') centerPanel([['UNTER KÜRBISSEN', 16, '#f08a1c'], ['', 8, '#fff'], ['EINER DER KÜRBISSE IST DER VERRÄTER!', 8, '#ff8a6a'], ['ERLEDIGE DEINE AUFGABEN (E) UND', 8, '#fff7e0'], ['MELDE AUSGEKNOCKTE KÜRBISSE.', 8, '#fff7e0'], ['W A S D = LAUFEN · ESC = AUFGABE ZU', 8, '#9ad0ff']]);
+  if (A.phase === 'intro') {
+    centerPanel([['UNTER KÜRBISSEN', 16, '#f08a1c'], ['', 8, '#fff'], ['EINER DER KÜRBISSE IST DER MÖRDER!', 8, '#ff8a6a'], ['CREW: AUFGABEN MACHEN, LEICHEN MELDEN.', 8, '#fff7e0'], ['MÖRDER: KILLEN UND DURCH SCHÄCHTE FLIEHEN.', 8, '#fff7e0'], ['', 8, '#fff'], ['', 8, '#fff'], ['ENTER = ZUFALL · W A S D = LAUFEN', 8, '#9ad0ff']]);
+    AU_ROLE.forEach((r, i) => { rect(r.x, r.y, r.w, r.h, i ? '#6a1a1a' : '#1a3a6a'); text(i ? '2 = MÖRDER' : '1 = CREW', r.x + r.w / 2, r.y + 6, 8, '#ffffff', 'center', null); });
+  }
+  if (A.phase === 'role') {
+    rect(0, 0, VW, VH, '#05030f');
+    text(A.pImp ? 'DU BIST DER MÖRDER' : 'DU BIST CREW', VW / 2, 40, 16, A.pImp ? '#ff5a4a' : '#5ff0ff', 'center', '#000');
+    text(A.pImp ? 'KILLE DIE CREW, OHNE ERWISCHT ZU WERDEN!' : 'FINDE DEN MÖRDER!', VW / 2, 66, 8, '#fff7e0', 'center', '#000');
+    if (A.pImp) drawCrewmate(VW / 2, 150, '#f08a1c', 1, 0);
+    else A.crew.forEach((c, i) => drawCrewmate(VW / 2 - 96 + i * 32, 150, c.col, 1, 0));
+    if (!A.pImp) drawCrewmate(VW / 2, 190, '#f08a1c', 1, 0);
+  }
   if (A.phase === 'meeting') drawAUMeeting();
   if (A.phase === 'eject') {
     rect(0, 0, VW, VH, '#05030f'); for (let i = 0; i < 60; i++) rect((i * 97 + 11) % VW, (i * 37) % VH, 1, 1, '#c9b8ff');
     if (A.eject.col) drawCrewmate(40 + A.eject.t * 90, 120 + Math.sin(A.eject.t * 2) * 6, A.eject.col, 1, 0);
     text(A.eject.text, VW / 2, 70, 8, '#ffffff', 'center', '#000');
   }
-  if (A.phase === 'end') centerPanel([[A.win ? 'SIEG FÜR DIE CREW!' : 'VERLOREN!', 16, A.win ? '#6dd64a' : '#ff5a4a'], ['', 8, '#fff'], [A.why, 8, '#fff7e0'], A.win ? ['+50 MÜNZEN IN DIE KASSE', 8, '#ffd23f'] : ['', 8, '#fff'], ['ENTER/KLICK = NOCHMAL · ESC/H = ZURÜCK', 8, '#9ad0ff']]);
+  if (A.phase === 'end') centerPanel([[A.win ? (A.pImp ? 'SIEG FÜR DEN MÖRDER!' : 'SIEG FÜR DIE CREW!') : 'VERLOREN!', 16, A.win ? '#6dd64a' : '#ff5a4a'], ['', 8, '#fff'], [A.why, 8, '#fff7e0'], A.win ? ['+50 MÜNZEN IN DIE KASSE', 8, '#ffd23f'] : ['', 8, '#fff'], ['ENTER/KLICK = NOCHMAL · ESC/H = ZURÜCK', 8, '#9ad0ff']]);
 }
 function drawAUTask() {
   const t = G.au.task, B = AU_TBOX;
@@ -7352,7 +7449,7 @@ function drawAUTask() {
 function drawAUMeeting() {
   const A = G.au, M = A.meet;
   rect(0, 0, VW, VH, 'rgba(10,14,40,.95)');
-  text(M.reason === 'body' ? 'AUSGEKNOCKTER KÜRBIS GEMELDET!' : 'NOTFALL-TREFFEN!', VW / 2, 6, 16, '#ff8a6a', 'center', '#000');
+  text(M.reason === 'body' ? 'LEICHE GEMELDET!' : 'NOTFALL-TREFFEN!', VW / 2, 6, 16, '#ff8a6a', 'center', '#000');
   M.lines.forEach((l, i) => text(l, 12, 26 + i * 10, 8, '#fff7e0', 'left', null));
   const alive = auAlive();
   alive.forEach((c, i) => {
@@ -7361,7 +7458,7 @@ function drawAUMeeting() {
     if (M.votes && M.votes[c.name]) text('●'.repeat(M.votes[c.name]), r.x + 28, r.y + 16, 8, '#ff8a6a', 'left', null);
   });
   rect(AU_SKIP.x, AU_SKIP.y, AU_SKIP.w, AU_SKIP.h, '#3a3a5a'); text(`0 ÜBERSPRINGEN${M.votes && M.votes.SKIP ? ' ' + M.votes.SKIP : ''}`, AU_SKIP.x + AU_SKIP.w / 2, AU_SKIP.y + 5, 8, '#ffffff', 'center', null);
-  if (!M.vote) text('WER IST DER VERRÄTER? KLICK ODER 1-7', 12, 206, 8, '#ffd23f', 'left', null);
+  if (!M.vote) text(A.pImp ? 'WEN WILLST DU BESCHULDIGEN? KLICK ODER 1-7' : 'WER IST DER MÖRDER? KLICK ODER 1-7', 12, 206, 8, '#ffd23f', 'left', null);
   else text(M.out === 'SKIP' ? 'GLEICHSTAND ODER ÜBERSPRUNGEN...' : `DIE MEISTEN STIMMEN: ${M.out}`, 12, 206, 8, '#ffd23f', 'left', null);
 }
 function drawAUBonus() {                                            // Raumschiff-Knopf auf der Teil-10-Seite
