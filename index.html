@@ -1380,6 +1380,7 @@ function goHome() {
   homeBtn.blur();
   if (G.state.startsWith('mc')) { mcSave(); openPart2(); return; }
   if (G.state.startsWith('fly')) { openPart6(); return; }
+  if (G.state === 'au') { openPart10(); return; }
   if (G.mode === 'dragon' && G.state !== 'part3') { G.mode = 'story'; openPart3(); return; }
   if (G.mode === 'space' && G.state !== 'part4' && G.state !== 'part5') { G.mode = 'story'; if (G.world === 10) openPart10(); else if (G.world === 9) openPart8(); else if (G.world === 8) openPart9(); else if (G.world === 7) openPart7(); else if (G.world === 5) openPart5(); else openPart4(); return; }
   homeBtn.hidden = true;
@@ -1478,6 +1479,7 @@ cv.addEventListener('pointerdown', e => {
   if (G.state === 'part9') { part9Click(pt); return; }
   if (G.state === 'part8') { part8Click(pt); return; }
   if (G.state === 'part10') { part10Click(pt); return; }
+  if (G.state === 'au') { auClick(pt); return; }
   if (G.state === 'part7' && inBox(pt, RMH_DOOR)) { openPart8(); return; }
   if (G.state === 'part7') { if (inBox(pt, PORTAL_BTN)) openPart6(); else { const i = SUDPOL_BTNS.findIndex(bt => inBox(pt, bt)); if (i >= 0) playSudpol(i); } return; }
   if (G.state === 'part5' && inBox(pt, ufoBox())) { openPart6(); return; }
@@ -3992,6 +3994,9 @@ function step() {
       if (pressed.enter && G.state === 'part6') playFly(flyUnlocked() - 1);
       if (pressed.seven && G.state === 'part6') tryDisco();
       break;
+    case 'au':
+      updateAU();
+      break;
     case 'part10':
       updatePart10();
       ['one', 'two', 'three', 'four', 'five'].forEach((k, i) => { if (pressed[k] && G.state === 'part10') playFt(i); });
@@ -5320,6 +5325,7 @@ function render() {
   if (G.state === 'part7') { drawPart7(); return; }
   if (G.state === 'part8') { drawPart8(); return; }
   if (G.state === 'part10') { drawPart10(); return; }
+  if (G.state === 'au') { drawAU(); return; }
   if (G.state === 'part9') { drawPart9(); return; }
   if (G.state.startsWith('fly')) { drawFly(); return; }
   if (G.state.startsWith('mc')) { drawMC(); return; }
@@ -6955,6 +6961,7 @@ function updatePart10() {
 }
 function part10Click(pt) {
   if (inBox(pt, PORTAL_BTN)) { openPart9(); return; }
+  if (inBox(pt, AU_BONUS)) { openAU(); return; }
   const i = FT_BTNS.findIndex(bt => inBox(pt, bt));
   if (i >= 0) playFt(i);
 }
@@ -6984,7 +6991,385 @@ function drawPart10() {
   else text('KLICK ODER 1-5 = LEVEL STARTEN', VW / 2, 90, 8, '#fff7e0', 'center', '#000');
   text('E COMBO · S BLOCK · Q DASH · 1-4 SKILLS · R SUPER', VW / 2, 200, 8, '#ffffff', 'center', '#5a0a0a');
   drawPortal(PORTAL_BTN, '9', 'TEIL 9');
+  drawAUBonus();
   text('PORTAL = TEIL 9 · A/D = LAUFEN · H = TEIL 1', VW / 2, 212, 8, '#fff7e0', 'center', '#000');
+}
+// ============================================================ Bonus-Spiel „Unter Kürbissen“ (inspiriert von Among Us)
+// Du bist ein Kürbis in der Crew eines Raumschiffs. Einer der anderen ist heimlich der Verräter und knockt Crewmitglieder aus.
+// Erledige deine Aufgaben, melde ausgeknockte Kürbisse und stimme den Verräter raus!
+const AU_ROOMS = [
+  { n: 'CAFETERIA', node: 'caf', x: 220, y: 20, w: 200, h: 120, a: '#5a6a8a', b: '#52627e' },
+  { n: 'KRANKENSTATION', node: 'med', x: 40, y: 20, w: 130, h: 100, a: '#c8d0dc', b: '#bcc4d0' },
+  { n: 'REAKTOR', node: 'rea', x: 20, y: 160, w: 130, h: 110, a: '#3a3448', b: '#342e40' },
+  { n: 'ELEKTRIK', node: 'ele', x: 180, y: 300, w: 120, h: 100, a: '#6a6448', b: '#625c40' },
+  { n: 'LAGER', node: 'lag', x: 340, y: 300, w: 140, h: 100, a: '#7a6046', b: '#725840' },
+  { n: 'NAVIGATION', node: 'nav', x: 520, y: 160, w: 110, h: 110, a: '#3a5a7a', b: '#345474' },
+];
+const AU_HALLS = [{ x: 170, y: 52, w: 50, h: 36 }, { x: 67, y: 120, w: 36, h: 40 }, { x: 67, y: 270, w: 36, h: 98 }, { x: 67, y: 332, w: 113, h: 36 }, { x: 300, y: 332, w: 40, h: 36 },
+  { x: 382, y: 140, w: 36, h: 160 }, { x: 480, y: 332, w: 113, h: 36 }, { x: 557, y: 270, w: 36, h: 98 }, { x: 420, y: 52, w: 173, h: 36 }, { x: 557, y: 52, w: 36, h: 108 }];
+const AU_W = 650, AU_H = 420;
+const AU_NODES = { caf: [320, 80], med: [105, 70], rea: [85, 215], rc: [85, 350], ele: [240, 350], lag: [410, 350], cl: [400, 150], nav: [575, 215], ln: [575, 350], cn: [575, 70] };
+const AU_EDGES = [['caf', 'med'], ['med', 'rea'], ['rea', 'rc'], ['rc', 'ele'], ['ele', 'lag'], ['lag', 'cl'], ['cl', 'caf'], ['lag', 'ln'], ['ln', 'nav'], ['caf', 'cn'], ['cn', 'nav']];
+const AU_COLS = [['ROT', '#e8312f'], ['BLAU', '#2a5ad8'], ['GRÜN', '#2ea84a'], ['GELB', '#f2d020'], ['LILA', '#8a4ad8'], ['PINK', '#f27ab8'], ['WEISS', '#e8e8f0']];
+const AU_TASKS = [
+  { n: 'DATEN HOCHLADEN', x: 400, y: 34, type: 'hold', time: 3.5 },
+  { n: 'KÖRPER-SCAN', x: 70, y: 98, type: 'hold', time: 3 },
+  { n: 'REAKTOR STARTEN', x: 40, y: 215, type: 'simon' },
+  { n: 'KABEL VERBINDEN', x: 200, y: 320, type: 'wires' },
+  { n: 'MÜLL LEEREN', x: 460, y: 385, type: 'hold', time: 2.5 },
+  { n: 'KURS SETZEN', x: 610, y: 215, type: 'timing' },
+];
+const AU_BTN = { x: 320, y: 80 };
+const AU_BONUS = { x: 6, y: 70, w: 46, h: 40 };
+const auOpen = () => !storeOK || !!store.ftWon;
+const auRects = () => AU_ROOMS.concat(AU_HALLS);
+const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+function auWalk(x, y) { const R = auRects(), m = 5; return [[x - m, y - m], [x + m, y - m], [x - m, y + 2], [x + m, y + 2]].every(([px, py]) => R.some(r => inRect(r, px, py))); }
+function auRoom(x, y) { const r = AU_ROOMS.find(r => inRect(r, x, y)); return r ? r.n : 'GANG'; }
+function auPath(from, to) {                                          // kürzester Weg durchs Schiff (Breitensuche)
+  const prev = { [from]: null }, q = [from];
+  while (q.length) { const n = q.shift(); if (n === to) break; for (const [a, b] of AU_EDGES) { const m = a === n ? b : b === n ? a : null; if (m && !(m in prev)) { prev[m] = n; q.push(m); } } }
+  const path = []; for (let n = to; n; n = prev[n]) path.unshift(n);
+  return path;
+}
+function auNearestNode(x, y) { let best = 'caf', d = 1e9; for (const k in AU_NODES) { const [nx, ny] = AU_NODES[k], dd = Math.hypot(nx - x, ny - y); if (dd < d) { d = dd; best = k; } } return best; }
+function openAU() {
+  if (!auOpen()) { SFX.bump(); if (G.p10) G.p10.auLock = G.t; return; }
+  const imp = Math.floor(Math.random() * AU_COLS.length);
+  const crew = AU_COLS.map(([name, col], i) => {
+    const a = i / AU_COLS.length * Math.PI * 2;
+    return { name, col, x: 320 + Math.cos(a) * 50, y: 82 + Math.sin(a) * 30, imp: i === imp, dead: false, path: [], wait: 1 + Math.random() * 2, log: [], killCd: 20, face: 1, anim: 0 };
+  });
+  G.au = { phase: 'intro', t: 0, introT: 3, p: { x: 320, y: 120, face: 1, anim: 0 }, crew, bodies: [], kills: [], tasks: AU_TASKS.map(() => false), bar: 0, aiBar: 0,
+    btnUsed: false, task: null, meet: null, eject: null, cam: [0, 0], logT: 0, msg: null };
+  G.state = 'au'; G.stateT = 0; form.hidden = true; homeBtn.hidden = false;
+  [220, 262, 330, 262, 196].forEach((f, i) => tone(f, f, 0.22, 'triangle', 0.05, i * 0.18));
+}
+function auAlive() { return G.au.crew.filter(c => !c.dead); }
+function auEnd(win, why) {
+  const A = G.au; A.phase = 'end'; A.win = win; A.why = why; A.t = 0;
+  if (win) { store.wallet = wallet() + 50; store.auWins = (store.auWins || 0) + 1; saveStore(); SFX.clear(); } else SFX.die();
+}
+function auCheck() {
+  const A = G.au, alive = auAlive(), imp = A.crew.find(c => c.imp);
+  if (imp.dead) { auEnd(true, `${imp.name} WAR DER VERRÄTER!`); return true; }
+  if (A.bar >= 100) { auEnd(true, 'ALLE AUFGABEN ERLEDIGT!'); return true; }
+  if (alive.filter(c => !c.imp).length + 1 <= 1) { auEnd(false, `${imp.name} WAR DER VERRÄTER UND HAT GEWONNEN.`); return true; }
+  return false;
+}
+const AU_IN = { CAFETERIA: 'IN DER CAFETERIA', KRANKENSTATION: 'IN DER KRANKENSTATION', REAKTOR: 'IM REAKTOR', ELEKTRIK: 'IN DER ELEKTRIK', LAGER: 'IM LAGER', NAVIGATION: 'IN DER NAVIGATION', GANG: 'IM GANG' };
+function auStartMeeting(reason, reporter, body) {
+  const A = G.au, imp = A.crew.find(c => c.imp), kill = body ? A.kills.find(k => k.victim === body.name) : null, lines = [];
+  if (reason === 'body') lines.push(`${reporter}: ICH HABE ${body.name} ${AU_IN[body.room]} GEFUNDEN!`);
+  else lines.push(`${reporter}: NOTFALL-TREFFEN!`);
+  const rooms = AU_ROOMS.map(r => r.n);
+  const extra = [];
+  for (const c of auAlive()) {
+    const roomAt = t => { let r = 'GANG'; for (const [lt, lr] of c.log) { if (lt > t) break; r = lr; } return r; };
+    if (kill) {
+      if (c.imp) { const lie = rooms.filter(r => r !== kill.room)[Math.floor(Math.random() * 5)]; lines.push(`${c.name}: ICH WAR ${AU_IN[lie]}.`); }
+      else {
+        const where = roomAt(kill.t); lines.push(`${c.name}: ICH WAR ${AU_IN[where]}.`);
+        // hat dieses Crewmitglied den Verräter kurz vorher gesehen?
+        const saw = c.log.find(([lt, lr]) => lt >= kill.t - 10 && lt <= kill.t && lr !== 'GANG' && imp.log.some(([it, ir]) => Math.abs(it - lt) < 0.6 && ir === lr));
+        if (saw) { extra.push(`${c.name}: ICH HABE ${imp.name} ${AU_IN[saw[1]]} GESEHEN!`); c.sus = imp.name; }
+      }
+    } else lines.push(`${c.name}: ICH WAR ${AU_IN[auRoom(c.x, c.y)]}.`);
+  }
+  lines.push(...extra.slice(0, Math.max(0, 8 - lines.length)));   // jeder sagt etwas, dann die Beobachtungen
+  A.meet = { reason, lines, vote: null, votes: null, t: 0 };
+  A.phase = 'meeting'; A.task = null; SFX.boss();
+}
+function auVote(target) {                                            // target: Name oder 'SKIP'
+  const A = G.au, M = A.meet; if (M.vote) return;
+  M.vote = target; M.t = 0;
+  const alive = auAlive(), names = alive.map(c => c.name).concat([G.name.toUpperCase()]);
+  const votes = { SKIP: 0 }; const add = n => { votes[n] = (votes[n] || 0) + 1; };
+  add(target);
+  for (const c of alive) {
+    if (c.imp) { add(target !== c.name && target !== 'SKIP' ? target : alive.filter(o => !o.imp)[0]?.name || 'SKIP'); continue; }
+    if (c.sus) add(c.sus);
+    else if (Math.random() < 0.45) add('SKIP');
+    else { const others = names.filter(n => n !== c.name); add(others[Math.floor(Math.random() * others.length)]); }
+  }
+  M.votes = votes;
+  let top = 'SKIP', max = votes.SKIP, tie = false;
+  for (const n in votes) { if (n === 'SKIP') continue; if (votes[n] > max) { top = n; max = votes[n]; tie = false; } else if (votes[n] === max) tie = true; }
+  M.out = tie ? 'SKIP' : top;
+}
+function auAfterMeeting() {
+  const A = G.au, M = A.meet, out = M.out;
+  A.eject = { name: out, t: 0 };
+  if (out === G.name.toUpperCase()) { A.eject.text = 'DU WURDEST RAUSGEWORFEN!'; }
+  else if (out !== 'SKIP') { const c = A.crew.find(c => c.name === out); c.dead = true; A.eject.col = c.col; A.eject.text = c.imp ? `${out} WAR DER VERRÄTER!` : `${out} WAR NICHT DER VERRÄTER.`; }
+  else A.eject.text = 'NIEMAND WURDE RAUSGEWORFEN.';
+  A.phase = 'eject'; A.meet = null;
+}
+function auResume() {
+  const A = G.au;
+  if (A.eject.name === G.name.toUpperCase()) { auEnd(false, 'DIE CREW HAT DICH FÜR DEN VERRÄTER GEHALTEN.'); return; }
+  if (auCheck()) return;
+  A.bodies = []; A.phase = 'play';
+  auAlive().forEach((c, i) => { const a = i / 7 * Math.PI * 2; c.x = 320 + Math.cos(a) * 50; c.y = 82 + Math.sin(a) * 30; c.path = []; c.wait = 1 + Math.random() * 2; c.sus = null; c.killCd = Math.max(c.killCd, 18); });
+  A.p.x = 320; A.p.y = 120;
+}
+function updateAU() {
+  const A = G.au; if (!A) return;
+  A.t += DT;
+  if (A.phase === 'intro') { if (A.t > A.introT || pressed.enter) { A.phase = 'play'; A.t = 0; } return; }
+  if (A.phase === 'end') { if (A.t > 1 && pressed.enter) openAU(); if (pressed.esc) openPart10(); return; }
+  if (A.phase === 'eject') { A.eject.t += DT; if (A.eject.t > 3.2 || (A.eject.t > 1 && pressed.enter)) auResume(); return; }
+  if (A.phase === 'meeting') {
+    const M = A.meet; M.t += DT;
+    if (!M.vote) {
+      const alive = auAlive();
+      ['one', 'two', 'three', 'four', 'five', 'six', 'seven'].forEach((k, i) => { if (pressed[k] && alive[i]) auVote(alive[i].name); });
+      if (pressed.ten) auVote('SKIP');
+    } else if (M.t > 2.6 || (M.t > 0.8 && pressed.enter)) auAfterMeeting();
+    return;
+  }
+  if (A.task) { updateAUTask(); return; }
+  // Spieler läuft (W/A/S/D oder Pfeile)
+  const P2 = A.p, sp = 1.4;
+  const mx = (K.right ? 1 : 0) - (K.left ? 1 : 0), my = (K.down ? 1 : 0) - (K.jump ? 1 : 0);
+  if (mx) P2.face = mx;
+  if (mx && auWalk(P2.x + mx * sp, P2.y)) P2.x += mx * sp;
+  if (my && auWalk(P2.x, P2.y + my * sp)) P2.y += my * sp;
+  P2.anim += (mx || my) ? 0.15 : 0;
+  A.cam = [clamp(P2.x - VW / 2, 0, AU_W - VW), clamp(P2.y - VH / 2, 0, AU_H - VH)];
+  // Computer-Crew
+  A.logT -= DT;
+  const logNow = A.logT <= 0; if (logNow) A.logT = 0.5;
+  const imp = A.crew.find(c => c.imp);
+  for (const c of A.crew) {
+    if (c.dead) continue;
+    if (logNow) c.log.push([A.t, auRoom(c.x, c.y)]);
+    if (c.path.length) {
+      const [tx, ty] = AU_NODES[c.path[0]] || c.path[0];
+      const dx = tx - c.x, dy = ty - c.y, d = Math.hypot(dx, dy), v = c.imp && c.hunt ? 1.15 : 0.9;
+      if (d < 2) c.path.shift(); else { c.x += dx / d * v; c.y += dy / d * v; if (Math.abs(dx) > 0.5) c.face = Math.sign(dx); c.anim += 0.15; }
+      if (!c.path.length) {
+        if (c.hunt) c.hunt = false;
+        else if (!c.local) { const r = AU_ROOMS.find(r => r.node === c.node); c.local = true; if (r) c.path = [[r.x + 15 + Math.random() * (r.w - 30), r.y + 18 + Math.random() * (r.h - 30)]]; }
+        else { c.local = false; c.wait = 2 + Math.random() * 3; c.doing = !c.imp; }   // angekommen: Aufgabe machen
+      }
+    } else if (c.wait > 0) {
+      c.wait -= DT;
+      if (c.wait <= 0 && c.doing && !c.imp) { A.aiBar = Math.min(40, A.aiBar + 1.5); c.doing = false; }
+    } else {
+      const here = auNearestNode(c.x, c.y), rooms = AU_ROOMS.filter(r => r.node !== here), r = rooms[Math.floor(Math.random() * rooms.length)];
+      c.node = r.node; c.path = auPath(here, r.node).slice(1); c.local = false;
+    }
+  }
+  // der Verräter jagt allein stehende Crewmitglieder
+  if (imp.killCd > 0 && imp.killCd - DT <= 0) imp.huntPlayer = Math.random() < 0.35;   // nur manchmal hat er es auf dich abgesehen
+  imp.killCd -= DT;
+  if (!imp.dead && imp.killCd <= 0 && A.t > 12) {
+    const alone = c => auAlive().filter(o => o !== c && o !== imp && Math.hypot(o.x - c.x, o.y - c.y) < 130).length === 0;
+    const pd = (x, y) => Math.hypot(A.p.x - x, A.p.y - y);
+    const victim = auAlive().filter(c => !c.imp && alone(c) && pd(c.x, c.y) > 150).sort((a, b) => Math.hypot(a.x - imp.x, a.y - imp.y) - Math.hypot(b.x - imp.x, b.y - imp.y))[0];
+    if (victim) {
+      const d = Math.hypot(victim.x - imp.x, victim.y - imp.y);
+      if (d < 14) {
+        victim.dead = true; A.bodies.push({ x: victim.x, y: victim.y, col: victim.col, name: victim.name, room: auRoom(victim.x, victim.y) });
+        A.kills.push({ t: A.t, room: auRoom(victim.x, victim.y), victim: victim.name });
+        imp.killCd = 24 + Math.random() * 8; imp.hunt = false; imp.path = []; imp.wait = 0.5;
+        if (auCheck()) return;
+      } else if (!imp.hunt || Math.random() < 0.02) { imp.hunt = true; imp.path = [[victim.x, victim.y]]; if (d > 60) imp.path = auPath(auNearestNode(imp.x, imp.y), auNearestNode(victim.x, victim.y)).slice(1).concat([[victim.x, victim.y]]); }
+    }
+    // ganz allein mit dir? Dann bist du dran!
+    const pAlone = auAlive().filter(o => !o.imp && Math.hypot(o.x - A.p.x, o.y - A.p.y) < 130).length === 0;
+    if (A.t > 40 && imp.huntPlayer && pAlone && Math.hypot(imp.x - A.p.x, imp.y - A.p.y) < 16) { auEnd(false, `${imp.name} WAR DER VERRÄTER UND HAT DICH AUSGEKNOCKT!`); return; }
+    if (A.t > 40 && imp.huntPlayer && pAlone && !victim && Math.hypot(imp.x - A.p.x, imp.y - A.p.y) < 120) { imp.hunt = true; imp.path = [[A.p.x, A.p.y]]; }
+  }
+  // Computer-Crewmitglieder finden ausgeknockte Kürbisse
+  for (const c of auAlive()) if (!c.imp) for (const b of A.bodies) if (Math.hypot(c.x - b.x, c.y - b.y) < 34) { auStartMeeting('body', c.name, b); return; }
+  A.bar = Math.min(100, A.tasks.filter(Boolean).length * 10 + A.aiBar);
+  if (auCheck()) return;
+  // E = benutzen / melden / Notfall-Knopf
+  if (pressed.punch) {
+    const body = A.bodies.find(b => Math.hypot(b.x - P2.x, b.y - P2.y) < 24);
+    const ti = AU_TASKS.findIndex((t, i) => !A.tasks[i] && Math.hypot(t.x - P2.x, t.y - P2.y) < 20);
+    if (body) auStartMeeting('body', G.name.toUpperCase(), body);
+    else if (ti >= 0) auOpenTask(ti);
+    else if (!A.btnUsed && Math.hypot(AU_BTN.x - P2.x, AU_BTN.y - P2.y) < 22) { A.btnUsed = true; auStartMeeting('button', G.name.toUpperCase(), null); }
+  }
+}
+// ---------- Aufgaben (kleine Minispiele)
+function auOpenTask(i) {
+  const T0 = AU_TASKS[i], t = { i, type: T0.type, prog: 0 };
+  if (t.type === 'wires') { t.left = [0, 1, 2, 3]; t.right = [0, 1, 2, 3].sort(() => Math.random() - 0.5); t.done = []; t.sel = -1; }
+  if (t.type === 'simon') { t.seq = [0, 1, 2, 3].map(() => Math.floor(Math.random() * 4)); t.show = 0; t.showT = 0.8; t.pos = 0; }
+  if (t.type === 'timing') { t.hits = 0; t.ph = 0; }
+  G.au.task = t;
+}
+const AU_WIRE = ['#e8312f', '#2a5ad8', '#f2d020', '#f27ab8'];
+function auTaskDone() { const A = G.au; A.tasks[A.task.i] = true; A.task = null; SFX.coin(); tone(660, 990, 0.15, 'triangle', 0.05); }
+function updateAUTask() {
+  const t = G.au.task;
+  if (pressed.esc) { G.au.task = null; return; }
+  if (t.type === 'hold') { if (K.punch) t.prog += DT; if (t.prog >= AU_TASKS[t.i].time) auTaskDone(); }
+  else if (t.type === 'wires') {
+    ['one', 'two', 'three', 'four'].forEach((k, n) => { if (pressed[k]) auWirePick(n); });
+  } else if (t.type === 'simon') {
+    if (t.show < t.seq.length) { t.showT -= DT; if (t.showT <= 0) { t.show++; t.showT = 0.8; } }
+    else ['one', 'two', 'three', 'four'].forEach((k, n) => { if (pressed[k]) auSimonPick(n); });
+  } else if (t.type === 'timing') {
+    t.ph += DT * 1.6;
+    if (pressed.punch) { const pos = (Math.sin(t.ph) + 1) / 2; if (pos > 0.42 && pos < 0.58) { t.hits++; tone(880, 880, 0.08, 'square', 0.04); if (t.hits >= 3) auTaskDone(); } else { t.hits = 0; SFX.bump(); } }
+  }
+}
+function auWirePick(n) {                       // erst eine Farbe links, dann die passende rechts
+  const t = G.au.task;
+  if (t.sel < 0) { if (!t.done.includes(n)) t.sel = n; return; }
+  if (t.right[n] === t.left[t.sel]) { t.done.push(t.sel); tone(700, 900, 0.08, 'square', 0.04); if (t.done.length === 4) auTaskDone(); } else SFX.bump();
+  t.sel = -1;
+}
+function auSimonPick(n) {
+  const t = G.au.task;
+  if (t.seq[t.pos] === n) { t.pos++; tone(400 + n * 120, 400 + n * 120, 0.12, 'triangle', 0.05); if (t.pos >= t.seq.length) auTaskDone(); }
+  else { SFX.bump(); t.show = 0; t.showT = 1; t.pos = 0; }
+}
+const AU_TBOX = { x: 92, y: 40, w: 200, h: 144 };
+function auClick(pt) {
+  const A = G.au; if (!A) return;
+  if (A.phase === 'meeting' && !A.meet.vote) {
+    const alive = auAlive();
+    alive.forEach((c, i) => { const r = auVoteBox(i); if (inBox(pt, r)) auVote(c.name); });
+    if (inBox(pt, AU_SKIP)) auVote('SKIP');
+    return;
+  }
+  if (A.phase === 'end') { openAU(); return; }
+  const t = A.task; if (!t) return;
+  if (t.type === 'wires') {
+    for (let n = 0; n < 4; n++) {
+      if (t.sel < 0 && inBox(pt, { x: AU_TBOX.x + 10, y: AU_TBOX.y + 30 + n * 26, w: 30, h: 16 })) auWirePick(n);
+      else if (t.sel >= 0 && inBox(pt, { x: AU_TBOX.x + AU_TBOX.w - 40, y: AU_TBOX.y + 30 + n * 26, w: 30, h: 16 })) auWirePick(n);
+    }
+  } else if (t.type === 'simon' && t.show >= t.seq.length) {
+    for (let n = 0; n < 4; n++) if (inBox(pt, { x: AU_TBOX.x + 50 + (n % 2) * 54, y: AU_TBOX.y + 30 + Math.floor(n / 2) * 50, w: 46, h: 42 })) auSimonPick(n);
+  }
+}
+const auVoteBox = i => ({ x: 20 + (i % 4) * 88, y: 108 + Math.floor(i / 4) * 34, w: 84, h: 30 });
+const AU_SKIP = { x: 296, y: 182, w: 76, h: 18 };
+// ---------- Zeichnen
+function drawCrewmate(x, y, col, face, walk, dead) {
+  x = Math.round(x); y = Math.round(y);
+  const dk = lerpColor(col, '#000000', 0.35);
+  if (dead) {                                                        // ausgeknockt: liegt da mit X-Augen und Sternchen
+    rect(x - 8, y - 6, 13, 6, col); rect(x - 10, y - 5, 3, 4, dk); rect(x + 4, y - 9, 8, 8, '#f08a1c'); rect(x + 7, y - 11, 2, 2, '#3f7d20');
+    text('x', x + 6, y - 9, 8, '#3a1a05', 'center', null); text('x', x + 10, y - 9, 8, '#3a1a05', 'center', null);
+    for (let i = 0; i < 3; i++) { const a = G.t * 1.5 + i * 2.1; rect(x + 8 + Math.cos(a) * 7, y - 14 + Math.sin(a) * 2, 2, 2, '#ffd23f'); }
+    return;
+  }
+  const st = walk ? Math.floor(walk) % 2 : 0;
+  rect(x - 4, y - 4, 3, 4 - st, dk); rect(x + 1, y - 4, 3, 3 + st, dk);                       // Beine
+  rect(x - 5, y - 12, 10, 9, col); rect(x - 6, y - 11, 12, 7, col);                             // Raumanzug
+  rect(face > 0 ? x - 8 : x + 6, y - 11, 2, 6, dk);                                              // Rucksack
+  rect(x - 4, y - 19, 8, 7, '#f08a1c'); rect(x - 5, y - 18, 10, 5, '#f08a1c'); rect(x - 1, y - 21, 2, 2, '#3f7d20');   // Kürbiskopf
+  rect(x - 3 + face, y - 17, 2, 2, '#3a1a05'); rect(x + 1 + face, y - 17, 2, 2, '#3a1a05'); rect(x - 2 + face, y - 14, 4, 1, '#3a1a05');
+  ctx.globalAlpha = 0.25; rect(x - 5, y - 19, 10, 8, '#9ad0ff'); ctx.globalAlpha = 1;            // Helmglas
+}
+function drawAU() {
+  const A = G.au, [cx, cy] = A.cam;
+  rect(0, 0, VW, VH, '#0a0a14');
+  ctx.save(); ctx.translate(-Math.round(cx), -Math.round(cy));
+  for (const h of AU_HALLS) { rect(h.x - 3, h.y - 3, h.w + 6, h.h + 6, '#2a2a3a'); }
+  for (const r of AU_ROOMS) rect(r.x - 4, r.y - 4, r.w + 8, r.h + 8, '#2a2a3a');
+  for (const h of AU_HALLS) rect(h.x, h.y, h.w, h.h, '#4a4a58');
+  for (const r of AU_ROOMS) {
+    for (let yy = r.y; yy < r.y + r.h; yy += 16) for (let xx = r.x; xx < r.x + r.w; xx += 16) rect(xx, yy, Math.min(16, r.x + r.w - xx), Math.min(16, r.y + r.h - yy), ((xx - r.x) / 16 + (yy - r.y) / 16) % 2 ? r.a : r.b);
+    text(r.n, r.x + r.w / 2, r.y + 4, 8, 'rgba(255,255,255,.35)', 'center', null);
+  }
+  // Einrichtung
+  ctx.fillStyle = '#7a8aa8'; ctx.beginPath(); ctx.ellipse(320, 84, 30, 18, 0, 0, Math.PI * 2); ctx.fill();            // Tisch mit Notfall-Knopf
+  ctx.fillStyle = A.btnUsed ? '#6a3a3a' : '#e8312f'; ctx.beginPath(); ctx.arc(AU_BTN.x, AU_BTN.y, 6, 0, Math.PI * 2); ctx.fill();
+  rect(250, 40, 24, 14, '#7a8aa8'); rect(366, 110, 24, 14, '#7a8aa8');
+  rect(48, 32, 30, 14, '#ffffff'); rect(48, 56, 30, 14, '#ffffff'); rect(60, 90, 22, 16, '#5ff0ff');                  // Betten + Scanner
+  ctx.fillStyle = '#5ff0ff'; ctx.globalAlpha = 0.25 + 0.1 * Math.sin(G.t); ctx.beginPath(); ctx.arc(85, 215, 22, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;   // Reaktorkern (langsam pulsierend)
+  rect(77, 207, 16, 16, '#2a8aa8');
+  for (let i = 0; i < 4; i++) rect(190 + i * 26, 306, 18, 22, '#3a3a2a');                                               // Schaltkästen
+  for (let i = 0; i < 5; i++) rect(350 + (i % 3) * 40, 320 + Math.floor(i / 3) * 40, 26, 22, '#9a6a3a');                // Kisten
+  rect(600, 170, 26, 90, '#0a1a3a'); for (let i = 0; i < 12; i++) rect(602 + (i * 7) % 22, 174 + (i * 13) % 82, 1, 1, '#ffffff');   // Fenster mit Sternen
+  // Aufgaben-Stationen (leuchten ruhig gelb)
+  AU_TASKS.forEach((t, i) => { if (A.tasks[i]) return; ctx.globalAlpha = 0.35 + 0.15 * Math.sin(G.t * 2); rect(t.x - 7, t.y - 7, 14, 14, '#ffd23f'); ctx.globalAlpha = 1; rect(t.x - 4, t.y - 4, 8, 8, '#c89a20'); });
+  // Figuren (nur im Sichtfeld)
+  const seen = (x, y) => Math.hypot(x - A.p.x, y - A.p.y) < 118;
+  for (const b of A.bodies) if (seen(b.x, b.y)) drawCrewmate(b.x, b.y, b.col, 1, 0, true);
+  for (const c of A.crew) if (!c.dead && seen(c.x, c.y)) { drawCrewmate(c.x, c.y, c.col, c.face, c.path.length ? c.anim : 0); text(c.name, c.x, c.y - 30, 8, '#ffffff', 'center', '#000'); }
+  drawCrewmate(A.p.x, A.p.y, '#f08a1c', A.p.face, A.p.anim); text(G.name.toUpperCase(), A.p.x, A.p.y - 30, 8, '#ffd23f', 'center', '#000');
+  ctx.restore();
+  // Sichtweite: um dich herum hell, weiter weg dunkel
+  const px = A.p.x - cx, py = A.p.y - cy - 8, gr = ctx.createRadialGradient(px, py, 70, px, py, 125);
+  gr.addColorStop(0, 'rgba(6,6,16,0)'); gr.addColorStop(1, 'rgba(6,6,16,0.9)'); ctx.fillStyle = gr; ctx.fillRect(0, 0, VW, VH);
+  // Anzeige: Aufgabenbalken, Liste, Raumname, Hinweise
+  rect(80, 4, 224, 12, 'rgba(10,6,16,.75)'); rect(82, 6, Math.round(220 * A.bar / 100), 8, '#6dd64a'); text(`AUFGABEN ${Math.round(A.bar)}%`, VW / 2, 6, 8, '#ffffff', 'center', null);
+  rect(4, 20, 100, 8 + AU_TASKS.length * 10, 'rgba(10,6,16,.7)');
+  AU_TASKS.forEach((t, i) => text((A.tasks[i] ? '✓ ' : '· ') + t.n, 7, 23 + i * 10, 8, A.tasks[i] ? '#6dd64a' : '#fff7e0', 'left', null));
+  text(auRoom(A.p.x, A.p.y), VW / 2, VH - 12, 8, '#9ad0ff', 'center', '#000');
+  if (A.phase === 'play' && !A.task) {
+    const near = A.bodies.some(b => Math.hypot(b.x - A.p.x, b.y - A.p.y) < 24) ? 'E = AUSGEKNOCKTEN KÜRBIS MELDEN!' : AU_TASKS.some((t, i) => !A.tasks[i] && Math.hypot(t.x - A.p.x, t.y - A.p.y) < 20) ? 'E = AUFGABE STARTEN' : !A.btnUsed && Math.hypot(AU_BTN.x - A.p.x, AU_BTN.y - A.p.y) < 22 ? 'E = NOTFALL-TREFFEN (1x)' : null;
+    if (near) text(near, VW / 2, VH - 26, 8, '#ffd23f', 'center', '#000');
+  }
+  if (A.task) drawAUTask();
+  if (A.phase === 'intro') centerPanel([['UNTER KÜRBISSEN', 16, '#f08a1c'], ['', 8, '#fff'], ['EINER DER KÜRBISSE IST DER VERRÄTER!', 8, '#ff8a6a'], ['ERLEDIGE DEINE AUFGABEN (E) UND', 8, '#fff7e0'], ['MELDE AUSGEKNOCKTE KÜRBISSE.', 8, '#fff7e0'], ['W A S D = LAUFEN · ESC = AUFGABE ZU', 8, '#9ad0ff']]);
+  if (A.phase === 'meeting') drawAUMeeting();
+  if (A.phase === 'eject') {
+    rect(0, 0, VW, VH, '#05030f'); for (let i = 0; i < 60; i++) rect((i * 97 + 11) % VW, (i * 37) % VH, 1, 1, '#c9b8ff');
+    if (A.eject.col) drawCrewmate(40 + A.eject.t * 90, 120 + Math.sin(A.eject.t * 2) * 6, A.eject.col, 1, 0);
+    text(A.eject.text, VW / 2, 70, 8, '#ffffff', 'center', '#000');
+  }
+  if (A.phase === 'end') centerPanel([[A.win ? 'SIEG FÜR DIE CREW!' : 'VERLOREN!', 16, A.win ? '#6dd64a' : '#ff5a4a'], ['', 8, '#fff'], [A.why, 8, '#fff7e0'], A.win ? ['+50 MÜNZEN IN DIE KASSE', 8, '#ffd23f'] : ['', 8, '#fff'], ['ENTER/KLICK = NOCHMAL · ESC/H = ZURÜCK', 8, '#9ad0ff']]);
+}
+function drawAUTask() {
+  const t = G.au.task, B = AU_TBOX;
+  rect(0, 0, VW, VH, 'rgba(5,3,14,.55)'); panel(B.x, B.y, B.w, B.h);
+  text(AU_TASKS[t.i].n, B.x + B.w / 2, B.y + 6, 8, '#ffd23f', 'center', null);
+  if (t.type === 'hold') {
+    const k = t.prog / AU_TASKS[t.i].time;
+    rect(B.x + 20, B.y + 60, B.w - 40, 14, '#2a1d2a'); rect(B.x + 20, B.y + 60, Math.round((B.w - 40) * k), 14, '#6dd64a');
+    text('E GEDRÜCKT HALTEN', B.x + B.w / 2, B.y + 90, 8, '#fff7e0', 'center', null);
+  } else if (t.type === 'wires') {
+    for (let n = 0; n < 4; n++) {
+      const y = B.y + 30 + n * 26, lc = AU_WIRE[t.left[n]], rc = AU_WIRE[t.right[n]];
+      rect(B.x + 10, y, 30, 16, lc); text(String(n + 1), B.x + 25, y + 4, 8, '#000', 'center', null);
+      rect(B.x + B.w - 40, y, 30, 16, rc); text(String(n + 1), B.x + B.w - 25, y + 4, 8, '#000', 'center', null);
+      if (t.done.includes(n)) { const j = t.right.indexOf(t.left[n]); ctx.strokeStyle = lc; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(B.x + 40, y + 8); ctx.lineTo(B.x + B.w - 40, B.y + 38 + j * 26); ctx.stroke(); ctx.lineWidth = 1; }
+      if (t.sel === n) rect(B.x + 8, y - 2, 34, 2, '#ffffff');
+    }
+    text('LINKS, DANN GLEICHE FARBE RECHTS (KLICK/1-4)', B.x + B.w / 2, B.y + B.h - 12, 8, '#b5a5bf', 'center', null);
+  } else if (t.type === 'simon') {
+    const lit = t.show < t.seq.length && t.showT < 0.6 ? t.seq[t.show] : -1;
+    for (let n = 0; n < 4; n++) { const x = B.x + 50 + (n % 2) * 54, y = B.y + 30 + Math.floor(n / 2) * 50; rect(x, y, 46, 42, lit === n ? '#ffffff' : AU_WIRE[n]); text(String(n + 1), x + 23, y + 16, 8, '#000', 'center', null); }
+    text(t.show < t.seq.length ? 'MERK DIR DIE REIHENFOLGE...' : `NACHMACHEN! (${t.pos}/${t.seq.length})`, B.x + B.w / 2, B.y + B.h - 12, 8, '#b5a5bf', 'center', null);
+  } else if (t.type === 'timing') {
+    const pos = (Math.sin(t.ph) + 1) / 2, bx = B.x + 20, bw = B.w - 40;
+    rect(bx, B.y + 60, bw, 12, '#2a1d2a'); rect(bx + bw * 0.42, B.y + 60, bw * 0.16, 12, '#6dd64a'); rect(bx + bw * pos - 2, B.y + 56, 4, 20, '#ffffff');
+    text(`E IM GRÜNEN BEREICH DRÜCKEN (${t.hits}/3)`, B.x + B.w / 2, B.y + 90, 8, '#fff7e0', 'center', null);
+  }
+  text('ESC = SCHLIESSEN', B.x + B.w / 2, B.y + B.h + 4, 8, '#b5a5bf', 'center', '#000');
+}
+function drawAUMeeting() {
+  const A = G.au, M = A.meet;
+  rect(0, 0, VW, VH, 'rgba(10,14,40,.95)');
+  text(M.reason === 'body' ? 'AUSGEKNOCKTER KÜRBIS GEMELDET!' : 'NOTFALL-TREFFEN!', VW / 2, 6, 16, '#ff8a6a', 'center', '#000');
+  M.lines.forEach((l, i) => text(l, 12, 26 + i * 10, 8, '#fff7e0', 'left', null));
+  const alive = auAlive();
+  alive.forEach((c, i) => {
+    const r = auVoteBox(i); rect(r.x, r.y, r.w, r.h, M.vote === c.name ? '#4a3a6a' : '#2a2a48');
+    drawCrewmate(r.x + 14, r.y + 26, c.col, 1, 0); text(`${i + 1} ${c.name}`, r.x + 28, r.y + 4, 8, '#ffffff', 'left', null);
+    if (M.votes && M.votes[c.name]) text('●'.repeat(M.votes[c.name]), r.x + 28, r.y + 16, 8, '#ff8a6a', 'left', null);
+  });
+  rect(AU_SKIP.x, AU_SKIP.y, AU_SKIP.w, AU_SKIP.h, '#3a3a5a'); text(`0 ÜBERSPRINGEN${M.votes && M.votes.SKIP ? ' ' + M.votes.SKIP : ''}`, AU_SKIP.x + AU_SKIP.w / 2, AU_SKIP.y + 5, 8, '#ffffff', 'center', null);
+  if (!M.vote) text('WER IST DER VERRÄTER? KLICK ODER 1-7', 12, 206, 8, '#ffd23f', 'left', null);
+  else text(M.out === 'SKIP' ? 'GLEICHSTAND ODER ÜBERSPRUNGEN...' : `DIE MEISTEN STIMMEN: ${M.out}`, 12, 206, 8, '#ffd23f', 'left', null);
+}
+function drawAUBonus() {                                            // Raumschiff-Knopf auf der Teil-10-Seite
+  const b = AU_BONUS, open = auOpen(), cx = b.x + b.w / 2, cy = b.y + 16;
+  rect(cx - 16, cy - 4, 32, 12, open ? '#c8d0dc' : '#5a5a68'); rect(cx - 10, cy - 10, 20, 6, open ? '#9ad0ff' : '#4a4a58'); rect(cx + 16, cy - 2, 4, 8, open ? '#e8312f' : '#4a4a58');
+  if (open) drawCrewmate(cx - 4, cy + 22, '#e8312f', 1, 0);
+  text(open ? 'BONUS' : 'ZU', cx, b.y + b.h + 2, 8, open ? '#ffd23f' : '#7a6a68', 'center', '#000');
+  if (G.p10 && G.p10.auLock && G.t - G.p10.auLock < 1.8) text('BONUS-SPIEL: ERST DEN CHAMPION BESIEGEN!', VW / 2, 104, 8, '#ff8a6a', 'center', '#000');
 }
 function openPart5() {
   G.state = 'part5'; G.stateT = 0;
