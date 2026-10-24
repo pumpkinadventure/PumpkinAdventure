@@ -7455,7 +7455,7 @@ function chBoss2(b, ph, dx, fire) {
     } else if (b.state === 'jaw') {                                  // Riesen-Lutschkugel rollt hin und zurück
       if (b.t <= 0) { fire({ x: b.x - 12, y: CH_GROUND - 10, r: 10, vx: -3, roll: true, kind: 'jaw', life: 7 }); b.state = 'idle'; b.t = 2.6; }
     } else if (b.state === 'corn') {                                 // Zuckermais: hoch = ducken, tief = springen
-      if (b.t <= 0) { const high = b.n % 2 === 0; fire({ x: b.x - 6, y: high ? CH_GROUND - 30 : CH_GROUND - 12, w: 12, h: 10, vx: ph === 3 ? -3.6 : -3.1, kind: 'corn', pink: b.n === 3 }); b.n++; b.t = 0.5; if (b.n >= 6) { b.state = 'idle'; b.t = 1.2; } }
+      if (b.t <= 0) { const high = b.n % 2 === 0; fire({ x: b.x - 6, y: high ? CH_GROUND - 30 : CH_GROUND - 12, w: 12, h: 10, vx: ph === 3 ? -3.6 : -3.1, kind: 'corn', pink: b.n === 1 }); b.n++; b.t = 1; if (b.n >= 3) { b.state = 'idle'; b.t = 1.2; } }   // nur noch jeder zweite Zuckermais (3 statt 6)
     } else if (b.state === 'mint') {                                 // Pfefferminz-Räder hüpfen
       if (b.t <= 0) { fire({ x: b.x, y: b.y + 20, r: 9, vx: -1.7 - b.n * 0.4, vy: -4, grav: 0.22, bounce: 5, kind: 'mint' }); b.n++; b.t = 1; if (b.n >= 2) { b.state = 'idle'; b.t = 1.8; } }
     } else if (b.state === 'head') {                                 // ihr Kopf fliegt durch die Arena – triff ihn!
