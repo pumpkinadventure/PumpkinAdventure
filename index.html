@@ -1336,6 +1336,7 @@ function release(k) { K[k] = false; }
 const typing = e => e.target && e.target.closest && e.target.closest('#startForm');
 addEventListener('keydown', e => {
   if (typing(e)) return;
+  if (G.state === 'ch' && e.code === 'KeyW') { e.preventDefault(); K.wShoot = true; return; }   // Teil 11: W schießt (springen mit Leertaste)
   const k = keyFor(e);
   if (!k) return;
   e.preventDefault();
@@ -1345,7 +1346,7 @@ addEventListener('keydown', e => {
   if (e.repeat) return;
   press(k);
 });
-addEventListener('keyup', e => { const k = keyFor(e); if (k && K[k] !== undefined) release(k); });
+addEventListener('keyup', e => { if (e.code === 'KeyW') K.wShoot = false; const k = keyFor(e); if (k && K[k] !== undefined) release(k); });
 addEventListener('blur', () => { for (const k in K) K[k] = false; });
 
 // Vollbild
@@ -4006,7 +4007,7 @@ function step() {
       break;
     case 'part11':
       updatePart11();
-      ['one', 'two', 'three', 'four', 'five'].forEach((k, i) => { if (pressed[k] && G.state === 'part11') playCH(i); });
+      ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'].forEach((k, i) => { if (pressed[k] && G.state === 'part11') playCH(i); });
       if (pressed.enter && G.state === 'part11') playCH(chUnlocked() - 1);
       break;
     case 'part10':
@@ -7013,15 +7014,15 @@ function drawPart10() {
 // ============================================================ Teil 11: Kürbis-Cartoon (inspiriert von Cuphead)
 // Alter Zeichentrick-Stil aus den 1930ern: du schießt mit Kürbiskernen (E halten), springst in der Luft auf Pinkes (Parry),
 // sammelst Super-Karten für EX-Schuss (Q) und Super (R), weichst mit Dash (Shift) aus und hast nur 3 Leben.
-const CH_NAMES = ['TINTENWALD', 'TINTENFASS-THEO', 'JAHRMARKT', 'KAFFEEKANNE KLARA', 'DER WÜRFEL-BARON'];
-const CH_BOSS = [null, 'theo', null, 'klara', 'baron'];
-const CH_HP = { theo: 260, klara: 400, baron: 460 };
-const CH_MARKS = { theo: [0.4, 0.75], klara: [0.35, 0.7], baron: [0.5] };          // Phasen-Striche auf dem Fortschrittsbalken
-const CH_PAR = [45, 90, 55, 120, 150];                                            // Zeit für die volle Punktzahl
+const CH_NAMES = ['TINTENWALD', 'TINTENFASS-THEO', 'JAHRMARKT', 'KAFFEEKANNE KLARA', 'DER WÜRFEL-BARON', 'DIE GEMÜSE-BANDE', 'GEWÄCHSHAUS', 'FLORIFLORA', 'BONBON-FABRIK', 'BARONESS BONBON'];
+const CH_BOSS = [null, 'theo', null, 'klara', 'baron', 'gemuese', null, 'flora', null, 'bonbon'];
+const CH_HP = { theo: 260, klara: 400, baron: 460, gemuese: 420, flora: 460, bonbon: 480 };
+const CH_MARKS = { theo: [0.4, 0.75], klara: [0.35, 0.7], baron: [0.5], gemuese: [0.333, 0.667], flora: [0.55], bonbon: [0.34, 0.7] };          // Phasen-Striche auf dem Fortschrittsbalken
+const CH_PAR = [45, 90, 55, 120, 150, 120, 55, 140, 60, 160];                                            // Zeit für die volle Punktzahl
 const CH_GROUND = 196, CH_G = 0.36, CH_JUMP = 6.4;
 const CH_INK = '#1a1410', CH_CREAM = '#f3e6c4';
-const chUnlocked = () => storeOK ? clamp(store.chUnlocked || 1, 1, CH_NAMES.length) : CH_NAMES.length;
-const CH_BTNS = CH_NAMES.map((n, i) => ({ x: 62 + i * 54, y: 58, w: 48, h: 23 }));
+const chUnlocked = () => storeOK ? clamp(Math.max(store.chUnlocked || 1, (store.chGrades || {})[4] ? 6 : 1), 1, CH_NAMES.length) : CH_NAMES.length;   // wer den Baron schon besiegt hat, darf gleich weiter
+const CH_BTNS = CH_NAMES.map((n, i) => ({ x: 62 + (i % 5) * 54, y: 56 + Math.floor(i / 5) * 26, w: 48, h: 23 }));
 const CH_DOOR = { x: 296, y: 8, w: 40, h: 46 };                                      // Filmrolle „11“ auf der Teil-10-Seite
 // Run-&-Gun-Level: Boden-Stücke (dazwischen Gruben), Plattformen, Münzen, Gegner, pinke Parry-Sterne
 const CH_RUNS = {
@@ -7037,6 +7038,18 @@ const CH_RUNS = {
     coins: [[412, 130], [1090, 98], [1812, 112], [2195, 128], [2890, 94]],
     pinks: [[1745, 150], [1812, 150], [1879, 150]],                                  // Ballon-Kette über der großen Grube: springen und parieren!
     enemies: [['klecks', 420], ['kirsche', 560], ['buch', 760], ['klecks', 880], ['blume', 1000], ['kirsche', 1150], ['klecks', 1350], ['buch', 1450], ['blume', 1640], ['klecks', 2050], ['kirsche', 2250], ['buch', 2300], ['blume', 2420], ['klecks', 2650], ['kirsche', 2800], ['buch', 2950], ['blume', 3100], ['klecks', 3200]] },
+  6: { W: 3200, goal: 3120, bg: 'haus',
+    ground: [[0, 560], [608, 1150], [1198, 1800], [1848, 2400], [2450, 3200]],
+    plats: [[300, 150, 64], [700, 140, 60], [800, 114, 60], [1400, 146, 70], [2000, 140, 64], [2100, 112, 64], [2700, 146, 70]],
+    coins: [[332, 132], [830, 96], [1174, 150], [2130, 94], [2900, 170]],
+    pinks: [[1824, 150], [2425, 150]],
+    enemies: [['pilz', 420], ['biene', 640], ['klecks', 760], ['blume', 980], ['pilz', 1100], ['kirsche', 1300], ['biene', 1480], ['pilz', 1650], ['klecks', 1950], ['blume', 2150], ['biene', 2250], ['pilz', 2350], ['kirsche', 2600], ['klecks', 2750], ['pilz', 2950], ['biene', 3000]] },
+  8: { W: 3400, goal: 3320, bg: 'bonbon',
+    ground: [[0, 640], [688, 1250], [1298, 1800], [2022, 2600], [2650, 3400]],
+    plats: [[380, 148, 64], [900, 140, 60], [1000, 114, 60], [2200, 146, 70], [2800, 140, 64], [2900, 112, 64]],
+    coins: [[412, 130], [1030, 96], [1912, 112], [2235, 128], [2930, 94]],
+    pinks: [[1845, 150], [1912, 150], [1979, 150]],                                  // Lutscher-Kette über der großen Grube
+    enemies: [['bonbon', 420], ['kirsche', 560], ['biene', 760], ['bonbon', 880], ['pilz', 1050], ['bonbon', 1150], ['klecks', 1350], ['biene', 1450], ['pilz', 1640], ['bonbon', 2100], ['kirsche', 2250], ['biene', 2350], ['blume', 2480], ['bonbon', 2700], ['pilz', 2850], ['biene', 2950], ['bonbon', 3100], ['kirsche', 3200]] },
 };
 function openPart11() {
   G.state = 'part11'; G.stateT = 0; G.mode = 'story';
@@ -7074,6 +7087,9 @@ function playCH(i) {
     C.b = { kind: boss, x: 300, y: 0, w: 40, h: 56, hp: max, max, state: 'idle', t: 1.6, face: -1, vx: 0, vy: 0, onGround: true, ph: 1, seq: 0, anim: 0, n: 0 };
     if (boss === 'klara') Object.assign(C.b, { x: 302, w: 54, h: 64 });
     if (boss === 'baron') Object.assign(C.b, { x: 300, w: 40, h: 62 });
+    if (boss === 'gemuese') Object.assign(C.b, { x: 286, w: 48, h: 44, form: 0, t: 1.8 });
+    if (boss === 'flora') { Object.assign(C.b, { x: 304, w: 46, h: 100, reach: 0 }); C.plats = [{ x: 40, y: 140, w: 56 }, { x: 130, y: 118, w: 56 }, { x: 220, y: 140, w: 56 }]; }
+    if (boss === 'bonbon') Object.assign(C.b, { x: 292, w: 34, h: 58 });
     C.b.y = CH_GROUND - C.b.h;
   }
   G.state = 'ch'; G.stateT = 0; form.hidden = true; homeBtn.hidden = false;
@@ -7084,6 +7100,9 @@ function chMakeEnemy(type, x) {
   if (type === 'blume') Object.assign(e, { w: 16, h: 26, y: CH_GROUND - 26, hp: 9, t: 1.2 });
   if (type === 'buch') Object.assign(e, { w: 16, h: 12, y: 100, by: 100, hp: 3 });
   if (type === 'kirsche') Object.assign(e, { w: 12, h: 12, y: CH_GROUND - 12, hp: 2 });
+  if (type === 'pilz') Object.assign(e, { w: 16, h: 18, y: CH_GROUND - 18, hp: 6, shield: true, t: rnd(0.3, 1.3) });
+  if (type === 'biene') Object.assign(e, { w: 16, h: 12, y: 96, by: 96, hp: 3 });
+  if (type === 'bonbon') Object.assign(e, { w: 14, h: 14, y: CH_GROUND - 14, hp: 3 });
   return e;
 }
 const chOnGround = (x1, x2) => G.ch.ground.some(([a, b]) => x2 > a && x1 < b);
@@ -7167,7 +7186,7 @@ function chPlayer() {
   if (p.shootCd > 0) p.shootCd -= DT;
   if (p.exCd > 0) p.exCd -= DT;
   const ox = p.x + p.w / 2 + p.face * 9, oy = p.y + (p.duck ? 15 : 9);
-  if (K.punch && p.shootCd <= 0 && p.dashT <= 0) {
+  if ((K.punch || K.wShoot) && p.shootCd <= 0 && p.dashT <= 0) {
     if (p.weapon === 0) { C.pb.push({ x: ox, y: oy, vx: p.face * 7, vy: 0, life: 0.9, dmg: 1, r: 2.5 }); p.shootCd = 0.11; }
     else { for (const a of [-0.26, 0, 0.26]) C.pb.push({ x: ox, y: oy, vx: Math.cos(a) * 6 * p.face, vy: Math.sin(a) * 6, life: 0.3, dmg: 0.8, r: 2.5 }); p.shootCd = 0.15; }
     if (C.frame % 3 === 0) tone(520, 380, 0.03, 'square', 0.012);
@@ -7188,7 +7207,7 @@ function chHitEnemy(e, dmg) {
   e.hp -= dmg; e.hurtT = 0.08;
   if (e.hp <= 0 && !e.dead) { e.dead = true; chPuff(e.x + e.w / 2, e.y + e.h / 2, '#e8dcc0', 10, 1.8); tone(500, 900, 0.07, 'square', 0.04); }
 }
-const chBossBox = () => { const b = G.ch.b; return b.state === 'roll' && b.kind === 'baron' ? { x: b.x + 6, y: CH_GROUND - 30, w: 30, h: 30 } : { x: b.x + 4, y: b.y + 4, w: b.w - 8, h: b.h - 6 }; };
+const chBossBox = () => { const b = G.ch.b; if (b.kind === 'bonbon' && b.hx != null) return { x: b.hx, y: b.hy, w: 24, h: 24 }; return b.state === 'roll' && b.kind === 'baron' ? { x: b.x + 6, y: CH_GROUND - 30, w: 30, h: 30 } : { x: b.x + 4, y: b.y + 4, w: b.w - 8, h: b.h - 6 }; };
 function chHitBoss(dmg, noCards) {
   const C = G.ch, b = C.b; if (!b || b.hp <= 0 || C.phase !== 'play') return;
   b.hp -= dmg; b.hurtT = 0.06;
@@ -7202,9 +7221,13 @@ function chShots() {
     if (s.life <= 0) continue;
     for (const e of C.en) {
       if (e.dead || !e.on || !chOver(e, s)) continue;
+      if (e.shield) { s.life = 0; chPuff(s.x, s.y, '#c8c8c8', 2, 1); break; }
       if (s.ex) { if (s.hit.includes(e)) continue; s.hit.push(e); } else s.life = 0;
       chHitEnemy(e, s.dmg); if (!s.ex) chAddCards(s.dmg * 0.02); chPuff(s.x, s.y, '#fff3b0', 2, 1);
       if (!s.ex) break;
+    }
+    for (const o of C.eb) if (o.hp && !o.dead && s.life > 0 && chOver({ x: o.x - o.r, y: o.y - o.r, w: o.r * 2, h: o.r * 2 }, s)) {
+      o.hp -= s.dmg; if (!s.ex) s.life = 0; if (o.hp <= 0) { o.dead = true; chPuff(o.x, o.y, '#ff8a6a', 6, 1.6); tone(600, 900, 0.06, 'square', 0.03); }
     }
     if (s.life > 0 && C.b && C.b.hp > 0 && chOver(chBossBox(), s)) {
       if (s.ex) { if (!s.hit.includes(C.b)) { s.hit.push(C.b); chHitBoss(s.dmg, true); chPuff(s.x, s.y, '#ffd23f', 8, 2); } }
@@ -7215,7 +7238,10 @@ function chShots() {
   // Geschosse der Gegner
   for (const s of C.eb) {
     s.x += s.vx; s.y += s.vy; if (s.grav) s.vy += s.grav;
-    if (s.kind === 'lid') { s.vx += 0.075; if (s.vx > 0) s.back = true; if (s.back) s.y += (CH_GROUND - 12 - s.y) * 0.08; }
+    if (s.kind === 'lid' || s.boom) { s.vx += 0.075; if (s.vx > 0) s.back = true; if (s.back) s.y += (CH_GROUND - 12 - s.y) * 0.08; }
+    if (s.home > 0) { s.home -= DT; const a = Math.atan2(C.p.y + 10 - s.y, C.p.x + 6 - s.x); s.vx += (Math.cos(a) * 1.6 - s.vx) * 0.05; s.vy += (Math.sin(a) * 1.6 - s.vy) * 0.05; }
+    if (s.sine) { s.st = (s.st || 0) + DT; s.y = s.by + Math.sin(s.st * 3.5) * 34; }
+    if (s.kind === 'fseed' && s.y >= CH_GROUND - 4) { s.dead = true; C.hz.push({ kind: 'thorn', x: s.x, warn: 0, act: 3, w: 24 }); chPuff(s.x, CH_GROUND, '#5a8a3a', 5, 1.2); }
     if (s.bounce && s.y + (s.r || s.h) >= CH_GROUND) { s.y = CH_GROUND - (s.r || s.h); s.vy = -s.bounce; tone(200, 140, 0.05, 'square', 0.03); }
     if (s.roll && (s.x < 6 || s.x > VW - 6) && !s.turned) { s.turned = true; s.vx = -s.vx; }
     s.life = (s.life || 8) - DT;
@@ -7237,7 +7263,17 @@ function chEnemies() {
     } else if (e.type === 'kirsche') {                               // Hüpf-Kirsche
       if (e.onGround) { e.t -= DT; if (e.t <= 0) { e.vy = -5; e.vx = Math.sign(dx) * 1.6; e.onGround = false; e.t = 0.7; } }
       else { e.vy += 0.3; e.x += e.vx; e.y += e.vy; if (e.y >= CH_GROUND - e.h) { if (chOnGround(e.x, e.x + e.w)) { e.y = CH_GROUND - e.h; e.onGround = true; e.vx = 0; } else if (e.y > VH) e.dead = true; } }
-    } else if (e.type === 'buch') {                                  // fliegendes Buch: flattert auf dich zu
+    } else if (e.type === 'pilz') {                                  // Pilz: versteckt sich unter dem Hut, kommt hoch und schießt Sporen
+      e.t -= DT;
+      if (e.shield) { if (e.t <= 0) { e.shield = false; e.t = 1.6; e.shot = false; } }
+      else {
+        if (!e.shot && e.t < 1.1 && Math.abs(dx) < 280) { e.shot = true; e.n++; C.eb.push({ x: e.x + e.w / 2, y: e.y + 2, vx: clamp(dx / 60, -2.4, 2.4), vy: -4.8, grav: 0.14, r: 4, pink: e.n % 2 === 0, kind: 'spore' }); tone(400, 600, 0.07, 'triangle', 0.03); }
+        if (e.t <= 0) { e.shield = true; e.t = 1.3; }
+      }
+    } else if (e.type === 'bonbon') {                                // rollendes Bonbon-Rad
+      e.x -= 1.5;
+      if (!chOnGround(e.x + 3, e.x + e.w - 3)) { e.y += 3; if (e.y > VH) e.dead = true; }
+    } else if (e.type === 'buch' || e.type === 'biene') {            // fliegendes Buch / Biene: flattert auf dich zu
       e.x -= 1.1; e.y = e.by + Math.sin(e.anim * 2.4) * 22;
     } else if (e.type === 'blume') {                                 // Puste-Blume: spuckt Samen im Bogen, jeder dritte ist pink
       e.t -= DT; e.face = dx < 0 ? -1 : 1;
@@ -7255,8 +7291,8 @@ function chBoss() {
   const C = G.ch, b = C.b, p = C.p; if (!b) return;
   b.anim += DT; if (b.hurtT > 0) b.hurtT -= DT;
   const dx = p.x + p.w / 2 - (b.x + b.w / 2), frac = b.hp / b.max;
-  const ph = b.kind === 'baron' ? (frac > 0.5 ? 1 : 2) : frac > (b.kind === 'theo' ? 0.6 : 0.65) ? 1 : frac > (b.kind === 'theo' ? 0.25 : 0.3) ? 2 : 3;
-  if (ph !== b.ph) { b.ph = ph; b.seq = 0; chMsg({ theo: ['', '', 'THEO WIRD WÜTEND!', 'THEO KOCHT ÜBER!'], klara: ['', '', 'KLARA SPRUDELT VOR WUT!', 'JETZT WIRD ES HEISS!'], baron: ['', '', 'DER BARON SETZT ALLES!'] }[b.kind][ph], 1.8); SFX.boss(); }
+  const ph = b.kind === 'baron' ? (frac > 0.5 ? 1 : 2) : b.kind === 'flora' ? (frac > 0.45 ? 1 : 2) : b.kind === 'gemuese' ? (frac > 0.667 ? 1 : frac > 0.333 ? 2 : 3) : b.kind === 'bonbon' ? (frac > 0.66 ? 1 : frac > 0.3 ? 2 : 3) : frac > (b.kind === 'theo' ? 0.6 : 0.65) ? 1 : frac > (b.kind === 'theo' ? 0.25 : 0.3) ? 2 : 3;
+  if (ph !== b.ph) { b.ph = ph; b.seq = 0; chMsg({ theo: ['', '', 'THEO WIRD WÜTEND!', 'THEO KOCHT ÜBER!'], klara: ['', '', 'KLARA SPRUDELT VOR WUT!', 'JETZT WIRD ES HEISS!'], baron: ['', '', 'DER BARON SETZT ALLES!'], gemuese: ['', '', 'DIE ZWIEBEL (SOĞAN) WEINT!', 'DIE SCHARFE PAPRIKA (BIBER)!'], flora: ['', '', 'FLORIFLORA WIRD WILD!'], bonbon: ['', '', 'DIE BARONESS WIRD SAUER!', 'JETZT FLIEGT IHR KOPF!'] }[b.kind][ph], 1.8); SFX.boss(); }
   b.t -= DT;
   const dir = b.x + b.w / 2 > VW / 2 ? -1 : 1, mx = dir < 0 ? b.x - 4 : b.x + b.w + 4;   // Angriffe kommen von der Seite des Bosses
   const fire = o => C.eb.push(Object.assign({ life: 9 }, o));
@@ -7356,7 +7392,137 @@ function chBoss() {
       if (b.x < 8 || b.x > VW - 8 - b.w) { b.x = clamp(b.x, 8, VW - 8 - b.w); b.state = 'idle'; b.t = 0.9; C.shake = 4; SFX.rock(); }
     }
   }
+  chBoss2(b, ph, dx, fire);
   if (p.inv <= 0 && C.phase === 'play' && chOver(chPBox(), chBossBox())) chHurt();
+}
+// ---------- Teil 11, Level 6–10: Gemüse-Bande vom Basar, Floriflora, Baroness Bonbon
+function chBoss2(b, ph, dx, fire) {
+  const C = G.ch, p = C.p;
+  if (b.kind === 'gemuese') {
+    if (b.form !== ph) {                                             // die nächste Gemüse-Sorte wächst aus der Erde
+      b.form = ph; const d = [null, [48, 44], [50, 58], [30, 74]][ph];
+      b.w = d[0]; b.h = d[1]; b.x = 310 - b.w / 2; b.y = CH_GROUND - b.h; b.state = 'idle'; b.t = 1.3; b.n = 0; b.seq = 0; b.rise = 1;
+      chPuff(b.x + b.w / 2, CH_GROUND, '#8a5a32', 14, 2.4); C.shake = 5;
+    }
+    if (b.rise > 0) b.rise = Math.max(0, b.rise - DT * 1.6);
+    if (b.state === 'idle') { if (b.t <= 0) { b.state = [null, ['clods'], ['cry'], ['chili', 'flame']][ph][b.seq++ % (ph === 3 ? 2 : 1)]; b.t = 0.6; b.n = 0; } }
+    else if (b.state === 'clods') {                                  // Kartoffel (Patates): Erdklumpen rollen über den Boden, jeder vierte ist pink
+      if (b.t <= 0) { fire({ x: b.x - 4, y: CH_GROUND - 7, r: 7, vx: -2.7, kind: 'clod', pink: b.n === 3 }); tone(160, 90, 0.08, 'square', 0.04); b.n++; b.t = 0.65; if (b.n >= 4) { b.state = 'idle'; b.t = 1.4; } }
+    } else if (b.state === 'cry') {                                  // Zwiebel (Soğan) weint: Tränen-Regen, Schatten zeigen wo
+      if (b.n === 0) { b.gap = [30, 110, 190][Math.floor(Math.random() * 3)]; chMsg('TRÄNEN! SUCH DIR DIE TROCKENE LÜCKE!', 1.3); }   // eine Lücke bleibt trocken
+      if (b.t <= 0) { b.t = 0.3; b.n++; let x; do x = rnd(14, b.x - 16); while (x > b.gap - 6 && x < b.gap + 66); C.hz.push({ kind: 'tear', x, warn: 0.6, w: 8, pink: b.n % 6 === 0 }); if (b.n >= 18) { b.state = 'idle'; b.t = 2; } }
+    } else if (b.state === 'chili') {                                // Paprika (Biber): scharfe Schoten verfolgen dich kurz – abschießen!
+      if (b.t <= 0) { fire({ x: b.x, y: b.y + 16, r: 5, vx: -1.2, vy: -1.6, kind: 'chili', home: 2.6, hp: 2, life: 6 }); tone(500, 800, 0.08, 'triangle', 0.04); b.n++; b.t = 0.7; if (b.n >= 3) { b.state = 'idle'; b.t = 1.6; } }
+    } else if (b.state === 'flame') {                                // Feuerbälle: hoch = ducken, tief = springen
+      if (b.t <= 0) { const high = b.n % 2 === 1; fire({ x: b.x - 6, y: high ? CH_GROUND - 25 : CH_GROUND - 7, r: 6, vx: -3.2, kind: 'flame', pink: b.n === 4 }); b.n++; b.t = 0.55; if (b.n >= 6) { b.state = 'idle'; b.t = 1.4; } }
+    }
+  } else if (b.kind === 'flora') {
+    b.face = -1;
+    if (b.state === 'idle') {
+      if (b.t <= 0) {
+        const plan = ph === 1 ? ['lunge', 'seeds', 'petal', 'lunge', 'petal'] : ['vines', 'pollen', 'lunge', 'vines', 'pollen', 'lunge'];
+        b.state = plan[b.seq++ % plan.length]; b.t = b.state === 'lunge' ? 1.4 : 0.4; b.n = 0; b.reach = 0;
+        if (b.state === 'lunge') { b.high = Math.random() < 0.5; chMsg(b.high ? 'KOPF KOMMT OBEN: BLEIB UNTEN!' : 'KOPF KOMMT UNTEN: AUF EIN BLATT ODER GANZ NACH LINKS!', 1.4); }
+      }
+    } else if (b.state === 'lunge') {                                // ihr Kopf schießt nach vorne
+      if (b.t <= 0) {
+        if (b.n === 0) { b.reach += 9; if (b.reach >= 205) { b.reach = 205; b.n = 1; b.hold = 0.3; C.shake = 3; } }
+        else if (b.n === 1) { b.hold -= DT; if (b.hold <= 0) b.n = 2; }
+        else { b.reach -= 7; if (b.reach <= 0) { b.reach = 0; b.state = 'idle'; b.t = 0.8; } }
+      }
+    } else if (b.state === 'seeds') {                                // Samen fallen und werden zu Dornen am Boden
+      if (b.n === 0) { for (let k = 0; k < 3; k++) C.hz.push({ kind: 'seed', x: rnd(20, 280), warn: 0.9 + k * 0.3, w: 10 }); b.n = 1; b.t = 1.8; chMsg('SAMEN! DA WACHSEN DORNEN!', 1); }
+      if (b.t <= 0) { b.state = 'idle'; b.t = 0.6; }
+    } else if (b.state === 'petal') {                                // Blüten-Bumerang: hin oben (ducken), zurück unten (springen)
+      if (b.t <= 0) { fire({ x: b.x - 10, y: CH_GROUND - 25, w: 18, h: 8, vx: -4.6, kind: 'petal', boom: true }); tone(700, 300, 0.2, 'triangle', 0.04); b.state = 'idle'; b.t = 2.8; }
+    } else if (b.state === 'vines') {                                // Dornenranken schießen aus dem Boden
+      if (b.n === 0) { [p.x + 6, rnd(20, 290)].forEach((x, k) => C.hz.push({ kind: 'vine', x, warn: 0.8 + k * 0.25, act: 0.9, w: 16 })); b.n = 1; b.t = 1.6; }
+      if (b.t <= 0) { b.state = 'idle'; b.t = 0.4; }
+    } else if (b.state === 'pollen') {                               // Pollen fliegen in Wellen, jede dritte ist pink
+      if (b.t <= 0) { fire({ x: b.x - 6, y: CH_GROUND - 50, by: CH_GROUND - 50, r: 5, vx: -2.2, kind: 'pollen', sine: true, pink: b.n % 3 === 2 }); b.n++; b.t = 0.45; if (b.n >= 5) { b.state = 'idle'; b.t = 1.3; } }
+    }
+    const lb = chLungeBox(b);
+    if (lb && p.inv <= 0 && chOver(chPBox(), lb)) chHurt();
+  } else if (b.kind === 'bonbon') {
+    b.face = -1;
+    if (b.state === 'idle') {
+      if (b.t <= 0) { const plan = [null, ['gum', 'jaw', 'gum', 'jaw'], ['corn', 'mint', 'gum', 'corn'], ['head', 'corn', 'mint']][ph]; b.state = plan[b.seq++ % plan.length]; b.t = 0.5; b.n = 0; }
+    } else if (b.state === 'gum') {                                  // Kaugummi-Kugeln im Bogen, eine ist pink
+      if (b.t <= 0) {
+        for (let k = 0; k < 5; k++) fire({ x: b.x, y: b.y + 10, r: 4, vx: -rnd(1.2, 3.6), vy: -rnd(3.5, 5.5), grav: 0.16, kind: 'gum', col: ['#ff5a5a', '#5ac8ff', '#ffd23f', '#7ad65a'][k % 4], pink: k === 2 });
+        tone(700, 400, 0.12, 'triangle', 0.04); b.n++; b.t = 1.1; if (b.n >= 2) { b.state = 'idle'; b.t = 1; }
+      }
+    } else if (b.state === 'jaw') {                                  // Riesen-Lutschkugel rollt hin und zurück
+      if (b.t <= 0) { fire({ x: b.x - 12, y: CH_GROUND - 10, r: 10, vx: -3, roll: true, kind: 'jaw', life: 7 }); b.state = 'idle'; b.t = 2.6; }
+    } else if (b.state === 'corn') {                                 // Zuckermais: hoch = ducken, tief = springen
+      if (b.t <= 0) { const high = b.n % 2 === 0; fire({ x: b.x - 6, y: high ? CH_GROUND - 30 : CH_GROUND - 12, w: 12, h: 10, vx: ph === 3 ? -3.6 : -3.1, kind: 'corn', pink: b.n === 3 }); b.n++; b.t = 0.5; if (b.n >= 6) { b.state = 'idle'; b.t = 1.2; } }
+    } else if (b.state === 'mint') {                                 // Pfefferminz-Räder hüpfen
+      if (b.t <= 0) { fire({ x: b.x, y: b.y + 20, r: 9, vx: -1.7 - b.n * 0.4, vy: -4, grav: 0.22, bounce: 5, kind: 'mint' }); b.n++; b.t = 1; if (b.n >= 2) { b.state = 'idle'; b.t = 1.8; } }
+    } else if (b.state === 'head') {                                 // ihr Kopf fliegt durch die Arena – triff ihn!
+      if (b.n === 0) { b.n = 1; b.hx = b.x + 4; b.hy = b.y - 4; b.hvx = -2.2; b.hvy = -1.6; b.t = 6.5; chMsg('IHR KOPF FLIEGT! SCHIESS DRAUF!', 1.4); }
+      b.hx += b.hvx; b.hy += b.hvy;
+      if (b.hx < 4 || b.hx > VW - 28) b.hvx = -b.hvx;
+      if (b.hy < 26 || b.hy > CH_GROUND - 24) b.hvy = -b.hvy;
+      b.hx = clamp(b.hx, 4, VW - 28); b.hy = clamp(b.hy, 26, CH_GROUND - 24);
+      if (b.t <= 0) { b.state = 'idle'; b.t = 1; b.hx = null; }
+    }
+  }
+}
+function chLungeBox(b) {                                              // Floriflora: der vorschnellende Kopf mit Stängel
+  if (b.kind !== 'flora' || b.state !== 'lunge' || !(b.reach > 0)) return null;
+  return { x: b.x - b.reach - 6, y: b.high ? CH_GROUND - 84 : CH_GROUND - 34, w: b.reach + 6, h: 34 };
+}
+function chDrawBoss2(b) {
+  const x = b.x, y = b.y, cx = x + b.w / 2, t = b.anim;
+  if (b.kind === 'gemuese') {
+    if (!b.form) return;
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, VW, CH_GROUND); ctx.clip(); ctx.translate(0, (b.rise || 0) * b.h);   // wächst aus der Erde
+    if (b.form === 1) {                                              // Kartoffel (Patates)
+      chOval(cx, y + 24, 25, 21, '#c8a060', 2); for (const [a, c] of [[-10, 12], [8, 30], [12, 10], [-14, 32]]) chOval(cx + a, y + c, 2, 1.5, '#8a6a3a', 0);
+      chEyes(cx - 6, y + 17, 1.1, -0.8);
+      const open = b.state === 'clods' && b.t > 0.3; chOval(cx - 6, y + 31, open ? 6 : 5, open ? 5 : 2, open ? '#3a1a0a' : CH_INK, 1.2);
+    } else if (b.form === 2) {                                       // Zwiebel (Soğan) weint
+      chOval(cx, y + 34, 26, 24, '#e8c8e0', 2);
+      ctx.lineWidth = 1; ctx.strokeStyle = '#b890b0'; for (const k of [-10, 0, 10]) { ctx.beginPath(); ctx.ellipse(cx + k, y + 34, 4, 22, 0, -1.3, 1.3); ctx.stroke(); }
+      chLine([cx, y + 11, cx - 3, y + 3, cx - 6, y - 4], 2, '#5aa83a'); chLine([cx, y + 11, cx + 4, y + 3, cx + 8, y - 2], 2, '#5aa83a');
+      chEyes(cx - 6, y + 30, 1.1, -0.6); chLine([cx - 14, y + 23, cx - 9, y + 21, cx - 4, y + 24], 1.4); chLine([cx - 10, y + 44, cx - 6, y + 40, cx - 2, y + 44], 1.4);
+      if (b.state === 'cry') for (const k of [-1, 1]) { const f = (t * 2.5 + (k > 0 ? 0.5 : 0)) % 1; chOval(cx - 6 + k * 4, y + 36 + f * 9, 1.6, 2.4, '#5ac8ff', 0); }
+    } else {                                                         // scharfe Paprika (Biber)
+      ctx.save(); ctx.translate(cx, y + b.h / 2); ctx.rotate(Math.sin(t * 2) * 0.05);
+      ctx.beginPath(); ctx.moveTo(-14, -30); ctx.quadraticCurveTo(-18, 10, 0, 36); ctx.quadraticCurveTo(18, 10, 14, -30); ctx.quadraticCurveTo(0, -38, -14, -30); ctx.closePath();
+      ctx.fillStyle = '#d62828'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = CH_INK; ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(-7, -14, 3, 12, 0.1, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,200,200,.45)'; ctx.fill();
+      chBox(-4, -42, 8, 9, '#3f7d20', 1.4, 2); chEyes(-3, -16, 1, -0.8);
+      chLine([-9, -3, -3, -7, 3, -3], 1.6); chLine([-12, -24, -7, -22, -2, -24], 1.4);
+      ctx.restore();
+    }
+    ctx.restore();
+    chOval(cx, CH_GROUND + 1, b.w / 2 + 8, 5, '#5a3a1e', 1.4);       // Erdhügel
+  } else if (b.kind === 'flora') {                                  // Floriflora: Riesenblume mit Blättern zum Draufstehen
+    chLine([cx, CH_GROUND, cx + 4, CH_GROUND - 40, cx, CH_GROUND - 70], 5, '#3a7a2a');
+    chOval(cx - 14, CH_GROUND - 30, 12, 5, '#5aa83a', 1.4); chOval(cx + 14, CH_GROUND - 46, 12, 5, '#5aa83a', 1.4);
+    const reach = b.reach || 0, lunge = b.state === 'lunge', hy = lunge && reach > 0 ? (b.high ? CH_GROUND - 67 : CH_GROUND - 17) : CH_GROUND - 78, hx = cx - reach;
+    if (reach > 0) chLine([cx, CH_GROUND - 70, (cx + hx) / 2, hy - 6, hx + 8, hy], 4, '#3a7a2a');
+    for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5 + t * 0.4; chOval(hx + Math.cos(a) * 15, hy + Math.sin(a) * 15, 7, 7, b.ph === 2 ? '#e84a6a' : '#f4a020', 1.2); }
+    chOval(hx, hy, 12, 12, '#ffe0a0', 1.6); chEyes(hx - 3, hy - 3, 1, -0.8);
+    chOval(hx - 3, hy + 6, reach > 0 ? 6 : 4, reach > 0 ? 4 : 1.5, reach > 0 ? '#8a1a2a' : CH_INK, 1.2);
+    if (b.ph === 2) chLine([hx - 10, hy - 9, hx - 5, hy - 7, hx, hy - 9], 1.4);
+    if (lunge && b.t > 0) text(b.high ? '! OBEN' : '! UNTEN', hx - 30, hy - 4, 8, '#c8202a', 'center', CH_INK);
+  } else if (b.kind === 'bonbon') {                                 // Baroness Bonbon vor ihrem Bonbon-Schloss
+    chBox(318, 70, 62, 126, '#f8c8dc', 2, 3); for (let k = 0; k < 4; k++) chBox(318 + k * 16, 62, 12, 10, '#ff9ac8', 1.4, 2);
+    for (let k = 0; k < 6; k++) rect(320, 82 + k * 18, 58, 3, k % 2 ? '#ffffff' : '#ff6a9a');
+    chBox(338, 152, 22, 44, '#a86a3a', 1.6, 8); chOval(349, 102, 9, 9, '#ffe8a0', 1.4);
+    chBox(cx - 12, y + 26, 24, 32, '#ff6a9a', 2, 8); chBox(cx - 14, y + 44, 28, 14, '#ff9ac8', 1.6, 6);
+    chLine([cx - 12, y + 30, cx - 18, y + 36, cx - 20, y + 42], 2); chOval(cx - 20, y + 43, 3, 2.6, '#ffffff', 1.2);
+    chLine([cx + 12, y + 30, cx + 18, y + 24, cx + 20, y + 18], 2); chOval(cx + 20, y + 17, 3, 2.6, '#ffffff', 1.2);
+    const fly = b.hx != null, hx = fly ? b.hx + 12 : cx, hy = fly ? b.hy + 12 : y + 14;
+    if (fly) { chOval(cx, y + 25, 5, 3, '#ffe0c8', 1.2); ctx.save(); ctx.translate(hx, hy); ctx.rotate(t * 3); ctx.translate(-hx, -hy); }
+    chOval(hx - 7, hy - 9, 8, 6, '#ff6a9a', 1.4); chOval(hx + 7, hy - 9, 8, 6, '#ff6a9a', 1.4);
+    chOval(hx, hy, 12, 12, '#ffe0c8', 1.8);
+    chBox(hx - 6, hy - 18, 12, 6, '#ffd23f', 1.2, 1); for (let k = 0; k < 3; k++) rect(hx - 5 + k * 4, hy - 21, 2, 3, '#ffd23f');
+    chEyes(hx - 2, hy, 0.9, -0.6); chLine([hx - 6, hy + 6, hx - 2, hy + (b.ph >= 2 ? 4 : 8), hx + 2, hy + 6], 1.4); chOval(hx - 8, hy + 4, 2, 1.2, '#ff9ab0', 0);
+    if (fly) ctx.restore();
+  }
 }
 function chHazards() {
   const C = G.ch;
@@ -7364,9 +7530,15 @@ function chHazards() {
     if (h.warn > 0) { h.warn -= DT; if (h.warn <= 0) {
       if (h.kind === 'drop') C.eb.push({ x: h.x, y: -10, vx: 0, vy: 4.2, r: 6, kind: 'drop', life: 3 });
       if (h.kind === 'chip') C.eb.push({ x: h.x, y: -10, vx: 0, vy: 3.8, r: 6, kind: 'chip', life: 3 });
-      if (h.kind !== 'steam') h.done = true;
+      if (h.kind === 'tear') C.eb.push({ x: h.x, y: -10, vx: 0, vy: 4.4, r: 4, kind: 'tear', pink: h.pink, life: 3 });
+      if (h.kind === 'seed') C.eb.push({ x: h.x, y: -10, vx: 0, vy: 3.5, r: 4, kind: 'fseed', life: 4 });
+      if (h.act == null) h.done = true;
     } continue; }
-    if (h.kind === 'steam') { h.act -= DT; if (h.act <= 0) h.done = true; else if (C.p.inv <= 0 && chOver(chPBox(), { x: h.x - 10, y: 30, w: 20, h: CH_GROUND - 30 })) chHurt(); }
+    if (h.act != null) {
+      h.act -= DT; if (h.act <= 0) { h.done = true; continue; }
+      const box = h.kind === 'steam' ? { x: h.x - 10, y: 30, w: 20, h: CH_GROUND - 30 } : h.kind === 'vine' ? { x: h.x - 6, y: CH_GROUND - 96, w: 12, h: 96 } : { x: h.x - 12, y: CH_GROUND - 8, w: 24, h: 8 };
+      if (C.p.inv <= 0 && chOver(chPBox(), box)) chHurt();
+    }
   }
   C.hz = C.hz.filter(h => !h.done);
 }
@@ -7456,7 +7628,7 @@ function chDrawPumpkin(x, y, face, pose, anim, alpha) {                // x = Mi
 }
 function chBg(C) {
   const kind = C.run ? C.run.bg : C.b.kind, cx = C.camX;
-  const sky = { wald: ['#f6ead0', '#e8d8a8'], markt: ['#f8e4c8', '#f0c890'], theo: ['#efe2c8', '#d8c8a8'], klara: ['#f0e8d8', '#e0d0b8'], baron: ['#5a1a1a', '#2a0a0a'] }[kind];
+  const sky = { wald: ['#f6ead0', '#e8d8a8'], markt: ['#f8e4c8', '#f0c890'], theo: ['#efe2c8', '#d8c8a8'], klara: ['#f0e8d8', '#e0d0b8'], baron: ['#5a1a1a', '#2a0a0a'], gemuese: ['#f8d8a0', '#e8a860'], haus: ['#e8f4e0', '#c8e0b8'], flora: ['#d8ecf4', '#f4ecc8'], bonbon: ['#ffe0f0', '#f8c0d8'] }[kind];
   const gr = ctx.createLinearGradient(0, 0, 0, VH); gr.addColorStop(0, sky[0]); gr.addColorStop(1, sky[1]); ctx.fillStyle = gr; ctx.fillRect(0, 0, VW, VH);
   if (kind === 'wald' || kind === 'markt') {
     for (let i = 0; i < 6; i++) chOval(((i * 160 - cx * 0.15) % 960 + 960) % 960 - 120, 175, 110, 46, kind === 'wald' ? '#c8c890' : '#d8b088', 1.2);   // ferne Hügel
@@ -7480,6 +7652,20 @@ function chBg(C) {
     chBox(150, 26, 80, 60, '#a8d0e8', 1.6, 2); rect(189, 26, 2, 60, CH_INK); rect(150, 55, 80, 2, CH_INK); chOval(166, 44, 9, 5, '#ffffff', 0);
     chBox(20, 60, 90, 6, '#8a5a32', 1.2, 1); chOval(38, 52, 8, 8, '#e8312f', 1.2); chOval(62, 54, 7, 6, '#3a6ac8', 1.2); chBox(80, 44, 14, 16, '#f4f0e8', 1.2, 2);
     chBox(0, 150, VW, 50, '#c8b090', 1.4, 0);
+  } else if (kind === 'gemuese') {                                    // türkischer Basar: Bögen, Teppich, bunte Mosaik-Lampen, Gemüsekisten
+    for (let i = 0; i < 4; i++) { const x = 20 + i * 96; chBox(x, 40, 80, 110, '#e8b878', 1.4, 0); ctx.beginPath(); ctx.moveTo(x + 8, 150); ctx.lineTo(x + 8, 80); ctx.quadraticCurveTo(x + 40, 40, x + 72, 80); ctx.lineTo(x + 72, 150); ctx.closePath(); ctx.fillStyle = '#8a3a2a'; ctx.fill(); ctx.lineWidth = 1.4; ctx.strokeStyle = CH_INK; ctx.stroke(); }
+    chBox(124, 88, 60, 52, '#b82a2a', 1.4, 0); chBox(130, 94, 48, 40, '#2a4a8a', 1, 0); for (let k = 0; k < 3; k++) chOval(154, 102 + k * 12, 8 - k * 2, 4, '#ffd23f', 1);
+    for (let i = 0; i < 5; i++) { const x = 40 + i * 76, ly = 30 + (i % 2) * 8; rect(x, 0, 1, ly - 8, '#6a4a2a'); ctx.globalAlpha = 0.18; chOval(x, ly + 4, 18, 14, '#ffe8a0', 0); ctx.globalAlpha = 1; chOval(x, ly, 8, 9, ['#e84a4a', '#3a8ad8', '#f4c020', '#4ab85a', '#c85ad8'][i], 1.4); rect(x - 4, ly - 1, 8, 1, '#ffd23f'); }
+    for (let i = 0; i < 3; i++) { const x = 14 + i * 64; chBox(x, 150, 48, 22, '#a8784a', 1.4, 1); for (let k = 0; k < 4; k++) chOval(x + 8 + k * 11, 148, 6, 5, ['#d62828', '#7a3a8a', '#3a8a3a', '#f08a1c'][(i + k) % 4], 1.2); }
+  } else if (kind === 'haus') {                                       // Gewächshaus: Glasscheiben und Blumentöpfe
+    for (let x = ((-cx * 0.4) % 40 + 40) % 40 - 40; x < VW; x += 40) rect(x, 0, 2, 150, '#8aa888');
+    for (let y = 30; y < 150; y += 40) rect(0, y, VW, 2, '#8aa888');
+    for (let i = 0; i < 10; i++) { const x = ((i * 130 - cx * 0.5) % 1300 + 1300) % 1300 - 60; chOval(x - 4, 150, 8, 12, '#5aa83a', 1.2); chOval(x + 6, 146, 7, 14, '#4a9830', 1.2); chBox(x - 10, 160, 20, 18, '#c86a3a', 1.4, 2); }
+  } else if (kind === 'flora') {                                      // Garten mit Riesenblumen
+    for (let i = 0; i < 6; i++) { const x = 20 + i * 70, h = 60 + (i * 23) % 40; chLine([x, 196, x + 3, 196 - h / 2, x, 196 - h], 3, '#4a8a3a'); for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; chOval(x + Math.cos(a) * 8, 196 - h + Math.sin(a) * 8, 5, 5, ['#f4a0c0', '#f4d040', '#a0c0f4'][i % 3], 1); } chOval(x, 196 - h, 5, 5, '#8a5a2a', 1); }
+  } else if (kind === 'bonbon') {                                     // Bonbon-Land: Gummi-Hügel und Zuckerstangen
+    for (let i = 0; i < 6; i++) chOval(((i * 160 - cx * 0.15) % 960 + 960) % 960 - 120, 178, 100, 44, ['#ffb8d8', '#b8e8d8', '#f8e0a0'][i % 3], 1.2);
+    for (let i = 0; i < 10; i++) { const x = ((i * 120 - cx * 0.45) % 1200 + 1200) % 1200 - 60; ctx.beginPath(); ctx.arc(x + 8, 122, 8, Math.PI, 0); ctx.lineWidth = 5; ctx.strokeStyle = '#e83a5a'; ctx.stroke(); chBox(x - 3, 120, 6, 76, '#ffffff', 1.2, 2); for (let k = 0; k < 5; k++) rect(x - 3, 124 + k * 15, 6, 5, '#e83a5a'); }
   } else if (kind === 'baron') {                                      // Kasino: rote Vorhänge, goldene Lampen
     for (let i = 0; i < 12; i++) { const x = i * 34; ctx.fillStyle = i % 2 ? '#7a1a1a' : '#8a2222'; ctx.fillRect(x, 0, 34, 150); rect(x + 16, 0, 2, 150, '#5a0e0e'); }
     for (let i = 0; i < 4; i++) { const x = 48 + i * 96; rect(x, 0, 1, 26, '#c8a040'); chOval(x, 30, 9, 6, '#ffd23f', 1.2); ctx.globalAlpha = 0.18; chOval(x, 34, 26, 18, '#ffe8a0', 0); ctx.globalAlpha = 1; }
@@ -7490,17 +7676,29 @@ function chDrawGround(C) {
   const kind = C.run ? C.run.bg : 'arena', cx = C.camX;
   for (const [a, b] of C.ground) {
     const x1 = Math.max(a, cx - 10) - cx, x2 = Math.min(b, cx + VW + 10) - cx; if (x2 <= x1) continue;
-    chBox(x1, CH_GROUND, x2 - x1, VH - CH_GROUND + 4, kind === 'markt' ? '#c89a6a' : C.b && C.b.kind === 'baron' ? '#2a6a3a' : C.b && C.b.kind === 'klara' ? '#9a7a5a' : '#a8784a', 1.6, 0);
+    chBox(x1, CH_GROUND, x2 - x1, VH - CH_GROUND + 4, { markt: '#c89a6a', haus: '#b86a4a', bonbon: '#f4c8dc' }[kind] || (C.b && { baron: '#2a6a3a', klara: '#9a7a5a', gemuese: '#6a4228', flora: '#7a6a3a', bonbon: '#f0b8d0' }[C.b.kind]) || '#a8784a', 1.6, 0);
     for (let x = Math.ceil((x1 + cx) / 14) * 14; x < x2 + cx; x += 14) rect(x - cx, CH_GROUND + 6 + ((x / 14) % 3) * 5, 6, 1, 'rgba(0,0,0,.18)');
-    if (kind === 'wald') for (let x = Math.ceil((x1 + cx) / 9) * 9; x < x2 + cx - 4; x += 9) chLine([x - cx, CH_GROUND + 1, x - cx + 2, CH_GROUND - 3, x - cx + 4, CH_GROUND + 1], 1, '#3a5a2a');
+    if (kind === 'wald' || (C.b && C.b.kind === 'flora')) for (let x = Math.ceil((x1 + cx) / 9) * 9; x < x2 + cx - 4; x += 9) chLine([x - cx, CH_GROUND + 1, x - cx + 2, CH_GROUND - 3, x - cx + 4, CH_GROUND + 1], 1, '#3a5a2a');
   }
-  for (const pl of C.plats) { if (pl.x + pl.w < cx || pl.x > cx + VW) continue; chBox(pl.x - cx, pl.y, pl.w, 7, kind === 'markt' ? '#c83a3a' : '#9a6a3a', 1.4, 2); rect(pl.x - cx + 3, pl.y + 2, pl.w - 6, 1, 'rgba(255,255,255,.35)'); }
+  for (const pl of C.plats) { if (pl.x + pl.w < cx || pl.x > cx + VW) continue; chBox(pl.x - cx, pl.y, pl.w, 7, kind === 'markt' ? '#c83a3a' : kind === 'bonbon' ? '#ff9ac8' : kind === 'haus' || (C.b && C.b.kind === 'flora') ? '#5aa83a' : '#9a6a3a', 1.4, 2); rect(pl.x - cx + 3, pl.y + 2, pl.w - 6, 1, 'rgba(255,255,255,.35)'); }
 }
 function chDrawShot(s, cx) {
   const x = s.x - cx, y = s.y;
   if (s.pink && s.r) { chOval(x, y, s.r + 0.5, s.r + 0.5, '#ff6ab0', 1.4); chOval(x - s.r * 0.3, y - s.r * 0.3, s.r * 0.3, s.r * 0.3, '#ffd0e8', 0); return; }
   switch (s.kind) {
     case 'ink': case 'drop': chOval(x, y, s.r, s.r, '#2a2440', 1.4); chOval(x - 1.5, y - 1.5, 1.4, 1.4, '#8a80b0', 0); break;
+    case 'clod': chOval(x, y, s.r, s.r - 1, '#7a5030', 1.4); chOval(x - 2, y - 2, 2, 1.5, '#a87850', 0); break;
+    case 'tear': ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.quadraticCurveTo(x + 4, y, x, y + 4); ctx.quadraticCurveTo(x - 4, y, x, y - 6); ctx.fillStyle = '#5ac8ff'; ctx.fill(); ctx.lineWidth = 1.2; ctx.strokeStyle = CH_INK; ctx.stroke(); break;
+    case 'chili': { ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(s.vy, s.vx)); chOval(0, 0, 7, 3.5, '#d62828', 1.2); chOval(-7, 0, 2, 2, '#3f7d20', 1); ctx.restore(); break; }
+    case 'flame': chOval(x, y, s.r, s.r, '#ff8a1c', 1.4); chOval(x + 1, y + 1, s.r * 0.5, s.r * 0.5, '#ffe14a', 0); break;
+    case 'fseed': chOval(x, y, 3, 4, '#6a4a2a', 1.2); break;
+    case 'spore': chOval(x, y, s.r, s.r, '#c8b8e8', 1.2); break;
+    case 'petal': chOval(x + s.w / 2, y + s.h / 2, s.w / 2, s.h / 2, '#fff0b0', 1.4); break;
+    case 'pollen': chOval(x, y, s.r, s.r, '#f4d040', 1.2); break;
+    case 'gum': chOval(x, y, s.r, s.r, s.col, 1.2); chOval(x - 1, y - 1, 1, 1, '#ffffff', 0); break;
+    case 'jaw': { ctx.save(); ctx.translate(x, y); ctx.rotate(s.x * 0.08); chOval(0, 0, s.r, s.r, '#7a5ad8', 1.6); for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(0, 0, s.r - 2 - k * 3, 0, Math.PI); ctx.strokeStyle = ['#ffd23f', '#5ac8ff', '#ff6a9a'][k]; ctx.lineWidth = 1.4; ctx.stroke(); } ctx.restore(); break; }
+    case 'corn': { ctx.beginPath(); ctx.moveTo(x + s.w, y); ctx.lineTo(x, y + s.h / 2); ctx.lineTo(x + s.w, y + s.h); ctx.closePath(); ctx.fillStyle = s.pink ? '#ff6ab0' : '#f4c020'; ctx.fill(); ctx.lineWidth = 1.2; ctx.strokeStyle = CH_INK; ctx.stroke(); if (!s.pink) rect(x + s.w - 4, y + 2, 3, s.h - 4, '#ffffff'); break; }
+    case 'mint': { ctx.save(); ctx.translate(x, y); ctx.rotate(s.x * 0.06); chOval(0, 0, s.r, s.r, '#ffffff', 1.6); for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, s.r - 1, k * Math.PI / 2, k * Math.PI / 2 + 0.8); ctx.closePath(); ctx.fillStyle = '#e83a5a'; ctx.fill(); } ctx.restore(); break; }
     case 'seed': chOval(x, y, s.r, s.r - 1, '#d8c060', 1.2); break;
     case 'chip': chOval(x, y, s.r, s.r * 0.6, '#e8312f', 1.4); chOval(x, y, s.r * 0.5, s.r * 0.3, '#ffffff', 0); break;
     case 'cup': chBox(x - 6, y - 6, 12, 11, '#f4f0e8', 1.4, 2); ctx.beginPath(); ctx.arc(x + 7, y - 1, 3, -1.5, 1.5); ctx.strokeStyle = CH_INK; ctx.lineWidth = 1.4; ctx.stroke(); break;
@@ -7526,6 +7724,17 @@ function chDrawEnemy(e, cx) {
   } else if (e.type === 'kirsche') {
     chLine([x + 6, y + 2, x + 8, y - 6, x + 12, y - 8], 1.4, '#3a5a2a');
     chOval(x + 6, y + 7, 6, 5.5, '#c8202a', 1.4); chOval(x + 4, y + 5, 1.5, 1, '#ff9a9a', 0); chEyes(x + 6, y + 7, 0.45, 0);
+  } else if (e.type === 'pilz') {
+    const up = e.shield ? 0 : Math.min(1, (1.6 - e.t) * 5 + 0.2), cy = y + 18 - 12 * up;
+    if (!e.shield) { chBox(x + 5, cy, 6, 18 - (cy - y), '#f4ead0', 1.2, 2); chEyes(x + 8, cy + 6, 0.4, e.face * 0.5); }
+    chOval(x + 8, cy - 2, 9, 6, '#d62828', 1.4); chOval(x + 4, cy - 4, 1.8, 1.4, '#ffffff', 0); chOval(x + 11, cy - 2, 1.6, 1.2, '#ffffff', 0);
+  } else if (e.type === 'bonbon') {
+    ctx.save(); ctx.translate(x + 7, y + 7); ctx.rotate(-e.anim * 4); chOval(0, 0, 7, 7, '#ffffff', 1.4); for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 6.2, k * Math.PI / 2, k * Math.PI / 2 + 0.7); ctx.closePath(); ctx.fillStyle = '#e83a5a'; ctx.fill(); } ctx.restore();
+    chEyes(x + 7, y + 6, 0.4, -0.6);
+  } else if (e.type === 'biene') {
+    const fl = Math.sin(e.anim * 14) * 2;
+    chOval(x + 6, y + 1 - fl, 4, 2.5, 'rgba(255,255,255,.8)', 1); chOval(x + 11, y + 1 + fl, 4, 2.5, 'rgba(255,255,255,.8)', 1);
+    chOval(x + 8, y + 7, 8, 5, '#f4c020', 1.4); rect(x + 7, y + 3, 2, 8, CH_INK); rect(x + 11, y + 3, 2, 8, CH_INK); chEyes(x + 3, y + 6, 0.35, -0.5);
   } else if (e.type === 'buch') {
     const fl = Math.sin(e.anim * 10) * 4;
     ctx.beginPath(); ctx.moveTo(x + 8, y + 6); ctx.lineTo(x - 2, y + 2 - fl); ctx.lineTo(x, y + 12 - fl * 0.5); ctx.closePath(); ctx.fillStyle = '#8a3a2a'; ctx.fill(); ctx.strokeStyle = CH_INK; ctx.lineWidth = 1.2; ctx.stroke();
@@ -7592,6 +7801,7 @@ function chDrawBoss(b) {
       }
     }
   }
+  chDrawBoss2(b);
   ctx.restore();
 }
 function chBanner(s, col, k) {                                        // großer Schriftzug, wächst sanft auf
@@ -7606,7 +7816,8 @@ function drawCH() {
   chBg(C); chDrawGround(C);
   // Parry-Sterne/Ballons, Münzen, Warnungen
   for (const s of C.pinks) if (s.gone <= 0) {
-    if (C.run && C.run.bg === 'markt') { chLine([s.x - cx, s.y + 7, s.x - cx + 1, s.y + 14, s.x - cx, s.y + 20], 1, CH_INK); chOval(s.x - cx, s.y, 7, 8, '#ff6ab0', 1.4); chOval(s.x - cx - 2, s.y - 3, 2, 2.5, '#ffd0e8', 0); }
+    if (C.run && C.run.bg === 'bonbon') { rect(s.x - cx - 0.5, s.y + 6, 1.5, 14, '#ffffff'); chOval(s.x - cx, s.y, 7, 7, '#ff6ab0', 1.4); ctx.beginPath(); ctx.arc(s.x - cx, s.y, 4, 0, 4.5); ctx.strokeStyle = '#ffd0e8'; ctx.lineWidth = 1.2; ctx.stroke(); }
+    else if (C.run && C.run.bg === 'markt') { chLine([s.x - cx, s.y + 7, s.x - cx + 1, s.y + 14, s.x - cx, s.y + 20], 1, CH_INK); chOval(s.x - cx, s.y, 7, 8, '#ff6ab0', 1.4); chOval(s.x - cx - 2, s.y - 3, 2, 2.5, '#ffd0e8', 0); }
     else { const r = 7 + Math.sin(G.t * 2) * 0.6; ctx.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * 0.45 : r; ctx.lineTo(s.x - cx + Math.cos(a) * rr, s.y + Math.sin(a) * rr); } ctx.closePath(); ctx.fillStyle = '#ff6ab0'; ctx.fill(); ctx.lineWidth = 1.2; ctx.strokeStyle = CH_INK; ctx.stroke(); }
   }
   for (const c of C.coinsL) if (!c.taken) { const w = Math.abs(Math.cos(G.t * 2.2 + c.x)) * 5 + 1; chOval(c.x - cx, c.y, w, 6, '#ffd23f', 1.2); if (w > 3) rect(c.x - cx - 0.5, c.y - 3, 1, 6, '#c8961a'); }
@@ -7614,6 +7825,8 @@ function drawCH() {
     const x = h.x - cx;
     if (h.warn > 0) { ctx.globalAlpha = 0.35 + 0.25 * (1 - Math.min(1, h.warn)); chOval(x, CH_GROUND + 2, h.w * 0.7, 3, h.kind === 'steam' ? '#ffffff' : '#2a2440', 0); ctx.globalAlpha = 1;
       if (h.kind === 'steam') for (let k = 0; k < 2; k++) chOval(x + (k ? 4 : -4), CH_GROUND - 4 - ((G.t * 20 + k * 6) % 12), 2.5, 2.5, '#ffffff', 0); }
+    else if (h.kind === 'thorn') { for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(x + k * 5 - 3, CH_GROUND); ctx.lineTo(x + k * 5, CH_GROUND - 9); ctx.lineTo(x + k * 5 + 3, CH_GROUND); ctx.closePath(); ctx.fillStyle = '#3a6a2a'; ctx.fill(); ctx.strokeStyle = CH_INK; ctx.lineWidth = 1; ctx.stroke(); } }
+    else if (h.kind === 'vine') { const k = Math.min(1, (0.9 - h.act) * 8 + 0.2), top = CH_GROUND - 96 * k; chBox(x - 6, top, 12, CH_GROUND - top, '#3a7a2a', 1.6, 4); for (let yy = CH_GROUND - 10; yy > top + 4; yy -= 14) { chLine([x - 6, yy, x - 9, yy - 2, x - 11, yy - 5], 1.4); chLine([x + 6, yy - 7, x + 9, yy - 9, x + 11, yy - 12], 1.4); } }
     else if (h.kind === 'steam') { ctx.globalAlpha = 0.85; for (let yy = CH_GROUND; yy > 30; yy -= 12) chOval(x + Math.sin(yy * 0.2 + G.t * 4) * 3, yy, 11, 8, '#f8f8f8', 0); ctx.globalAlpha = 1; }
   }
   for (const e of C.en) if (!e.dead && e.on) chDrawEnemy(e, cx);
@@ -7682,7 +7895,6 @@ function drawPart11() {
   chOval(90, 190, 140, 40, '#c8c890', 1.4); chOval(320, 194, 130, 36, '#b8b880', 1.4);
   chBox(0, 188, VW, 40, '#a8784a', 1.6, 0);
   chDrawPumpkin(S.x, 188, S.face, Math.abs(S.vx) > 0.2 ? 'run' : 'stand', G.t * 6, 1);
-  chDrawBoss({ kind: 'theo', x: 250, y: 188 - 56, w: 40, h: 56, face: -1, anim: G.t, state: 'idle', ph: 1, flying: false });
   text('KÜRBIS-ABENTEUER', VW / 2 + 1, 8, 16, '#f08a1c', 'center', CH_INK);
   text('TEIL 11', VW / 2, 27, 16, '#c8202a', 'center', CH_INK);
   text('KÜRBIS-CARTOON (WIE CUPHEAD)', VW / 2, 46, 8, CH_INK, 'center', null);
@@ -7693,12 +7905,12 @@ function drawPart11() {
     text(String(i + 1), bt.x + bt.w / 2, bt.y + 2, 8, open ? CH_INK : '#7a6a58', 'center', null);
     text(!open ? 'ZU' : grades[i] ? `NOTE ${grades[i]}` : boss ? 'BOSS' : 'LAUFEN', bt.x + bt.w / 2, bt.y + 12, 8, open ? '#c8202a' : '#7a6a58', 'center', null);
   });
-  if (lock) text(`ERST LEVEL ${lock.i} SCHAFFEN!`, VW / 2, 86, 8, '#c8202a', 'center', null);
-  else if (store.chWon) text('DER WÜRFEL-BARON IST BESIEGT! ★', VW / 2, 86, 8, '#c8202a', 'center', null);
-  else text('KLICK ODER 1-5 = LEVEL STARTEN', VW / 2, 86, 8, CH_INK, 'center', null);
-  text('E HALTEN = SCHIESSEN · SHIFT = DASH · S = DUCKEN', VW / 2, 98, 8, CH_INK, 'center', null);
-  text('IN DER LUFT AUF PINKES SPRINGEN = PARRY', VW / 2, 108, 8, '#c83a8a', 'center', null);
-  text('Q = EX (1 KARTE) · R = SUPER (5) · 1/2 = WAFFE', VW / 2, 118, 8, CH_INK, 'center', null);
+  if (lock) text(`ERST LEVEL ${lock.i} SCHAFFEN!`, VW / 2, 110, 8, '#c8202a', 'center', null);
+  else if (grades[9]) text('BARONESS BONBON IST BESIEGT! ★', VW / 2, 110, 8, '#c8202a', 'center', null);
+  else text('KLICK ODER 1-9, 0 = LEVEL STARTEN', VW / 2, 110, 8, CH_INK, 'center', null);
+  text('W HALTEN = SCHIESSEN · LEERTASTE = SPRINGEN', VW / 2, 122, 8, CH_INK, 'center', null);
+  text('SHIFT = DASH · S = DUCKEN · IN DER LUFT AUF PINKES = PARRY', VW / 2, 132, 8, '#c83a8a', 'center', null);
+  text('Q = EX (1 KARTE) · R = SUPER (5) · 1/2 = WAFFE', VW / 2, 142, 8, CH_INK, 'center', null);
   drawPortal(PORTAL_BTN, '10', 'TEIL 10');
   text('PORTAL = TEIL 10 · A/D = LAUFEN · H = TEIL 1', VW / 2, 212, 8, '#fff7e0', 'center', CH_INK);
 }
