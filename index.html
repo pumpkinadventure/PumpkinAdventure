@@ -7080,39 +7080,54 @@ function auCheck() {
   return false;
 }
 const AU_IN = { CAFETERIA: 'IN DER CAFETERIA', KRANKENSTATION: 'IN DER KRANKENSTATION', REAKTOR: 'IM REAKTOR', ELEKTRIK: 'IN DER ELEKTRIK', LAGER: 'IM LAGER', NAVIGATION: 'IN DER NAVIGATION', GANG: 'IM GANG' };
+// Die Crew denkt wie Menschen: jeder sammelt Verdachtspunkte aus dem, was er selbst gesehen oder gehört hat.
+// Sie sehen nicht alles, verdächtigen auch mal Unschuldige, lassen sich mitreißen und sind oft unsicher.
+function auSus(c, name, v) { if (!name || name === c.name || c.imp) return; c.sc = c.sc || {}; c.sc[name] = (c.sc[name] || 0) + v; }
+const auLogAt = (log, t) => { let r = 'GANG'; for (const [lt, lr] of log) { if (lt > t) break; r = lr; } return r; };
 function auStartMeeting(reason, reporter, body) {
-  const A = G.au, kill = body ? A.kills.find(k => k.victim === body.name) : null, lines = [];
+  const A = G.au, kill = body ? A.kills.find(k => k.victim === body.name) : null;
   const killer = A.pImp ? A.p : auImp(), kName = A.pImp ? auPName() : killer.name;
-  if (reason === 'body') lines.push(`${reporter}: ICH HABE DIE LEICHE VON ${body.name} ${AU_IN[body.room]} GEFUNDEN!`);
-  else lines.push(`${reporter}: NOTFALL-TREFFEN!`);
-  const rooms = AU_ROOMS.map(r => r.n), extra = [];
-  let accuse = null;
+  const head = reason === 'body' ? `${reporter}: ICH HABE DIE LEICHE VON ${body.name} ${AU_IN[body.room]} GEFUNDEN!` : `${reporter}: NOTFALL-TREFFEN!`;
+  const rooms = AU_ROOMS.map(r => r.n), alibi = [], extra = [], crew = auAlive().filter(c => !c.imp);
+  const people = auAlive().map(c => ({ name: c.name, log: c.log, imp: c.imp })).concat(A.pGhost ? [] : [{ name: auPName(), log: A.p.log, imp: A.pImp }]);
+  const hear = (name, v, who) => crew.forEach(o => { if (o !== who && Math.random() < 0.6) auSus(o, name, v); });   // nicht jeder hört gleich gut zu
+  let accuse = null, claim = null;
   for (const c of auAlive()) {
-    const roomAt = t => { let r = 'GANG'; for (const [lt, lr] of c.log) { if (lt > t) break; r = lr; } return r; };
     if (c.imp) {
-      // der Computer-Mörder lügt geschickt: er nennt einen Raum, in dem wirklich jemand war, und beschuldigt manchmal andere
-      const others = auAlive().filter(o => !o.imp).concat(A.pImp || A.pGhost ? [] : [{ name: auPName(), log: A.p.log }]);
+      // der Computer-Mörder lügt: er nennt einen Raum, in dem wirklich jemand war, und beschuldigt manchmal andere
+      const others = people.filter(o => !o.imp);
       const fake = kill && others.length ? others[Math.floor(Math.random() * others.length)] : null;
-      const fr = fake ? (() => { let r = 'GANG'; for (const [lt, lr] of fake.log) { if (lt > kill.t) break; r = lr; } return r; })() : null;
-      const lie = fr && fr !== kill.room ? fr : rooms.filter(r => !kill || r !== kill.room)[Math.floor(Math.random() * 5)];
-      lines.push(`${c.name}: ICH WAR ${AU_IN[lie]}${fake && fr === lie ? ` MIT ${fake.name}` : ''}.`);
-      if (others.length && Math.random() < 0.45) { accuse = others[Math.floor(Math.random() * others.length)].name; extra.unshift(`${c.name}: ICH GLAUBE, ${accuse} WAR ES!`); }
+      const fr = fake ? auLogAt(fake.log, kill.t) : null;
+      claim = fr && fr !== kill.room ? fr : rooms.filter(r => !kill || r !== kill.room)[Math.floor(Math.random() * 5)];
+      alibi.push({ imp: true, s: `${c.name}: ICH WAR ${AU_IN[claim]}${fake && fr === claim ? ` MIT ${fake.name}` : ''}.` });
+      if (others.length && Math.random() < 0.4) { accuse = others[Math.floor(Math.random() * others.length)].name; extra.push(`${c.name}: ICH GLAUBE, ${accuse} WAR ES!`); hear(accuse, 1.2, c); }
       continue;
     }
-    if (kill) {
-      const where = roomAt(kill.t); lines.push(`${c.name}: ICH WAR ${AU_IN[where]}.`);
-      // hat dieses Crewmitglied den Mörder kurz vorher gesehen? (manchmal passen sie nicht auf)
-      const saw = c.log.find(([lt, lr]) => lt >= Math.max(kill.t - 5, (A.roundT || 0) + 5) && lt <= kill.t && lr === kill.room && killer.log.some(([it, ir]) => Math.abs(it - lt) < 0.6 && ir === lr));
-      if (saw) { extra.push(`${c.name}: ICH HABE ${kName} ${AU_IN[saw[1]]} GESEHEN!`); c.sus = c.sus || kName; }
-      else if (!A.pImp && !A.pGhost) {
-        const sawMe = c.log.find(([lt, lr]) => lt >= Math.max(kill.t - 10, (A.roundT || 0) + 5) && lt <= kill.t && lr === kill.room && A.p.log.some(([it, ir]) => Math.abs(it - lt) < 0.6 && ir === lr));
-        if (sawMe) { extra.push(`${c.name}: ${auPName()} WAR AUCH ${AU_IN[sawMe[1]]}...`); if (Math.random() < 0.4) c.sus = c.sus || auPName(); }
-      }
-    } else lines.push(`${c.name}: ICH WAR ${AU_IN[auRoom(c.x, c.y)]}.`);
-    if (c.saw === 'kill') extra.unshift(`${c.name}: ICH HABE GESEHEN, WIE ${kName} ES WAR!`);
-    if (c.saw === 'vent') extra.unshift(`${c.name}: ${kName} IST AUS EINEM SCHACHT GEKOMMEN!`);
+    const where = kill ? auLogAt(c.log, kill.t) : auRoom(c.x, c.y);
+    alibi.push({ s: `${c.name}: ICH WAR ${AU_IN[where]}.` });
+    if (c.saw === 'kill') { extra.unshift(`${c.name}: ICH HABE GESEHEN, WIE ${c.sawWho} ES WAR!`); hear(c.sawWho, 3, c); }
+    else if (c.saw === 'vent') { extra.unshift(`${c.name}: ${c.sawWho} IST AUS EINEM SCHACHT GEKOMMEN!`); hear(c.sawWho, 2.5, c); }
+    if (!kill) continue;
+    // wen hat dieses Crewmitglied kurz vor der Tat am Tatort gesehen? (das kann auch ein Unschuldiger sein!)
+    const from = Math.max(kill.t - 6, (A.roundT || 0) + 5);
+    for (const o of people) {
+      if (o.name === c.name || o.name === body.name || Math.random() > 0.65) continue;   // nicht jeder merkt sich alles
+      const hit = c.log.find(([lt, lr]) => lt >= from && lt <= kill.t && lr === kill.room && o.log.some(([it, ir]) => Math.abs(it - lt) < 0.6 && ir === lr));
+      if (hit) { extra.push(`${c.name}: ICH HABE ${o.name} VORHIN ${AU_IN[kill.room]} GESEHEN.`); auSus(c, o.name, 2); hear(o.name, 0.8, c); }
+    }
+    // Lüge ertappt? Wer selbst im behaupteten Raum war, merkt manchmal, dass der Mörder gar nicht da war
+    const imp = auImp();
+    if (imp && claim && claim !== 'GANG' && where === claim && auLogAt(imp.log, kill.t) !== claim && Math.random() < 0.45) {
+      extra.push(`${c.name}: STIMMT NICHT! ICH WAR ${AU_IN[claim]} UND HABE ${imp.name} NICHT GESEHEN!`); auSus(c, imp.name, 3); hear(imp.name, 1.3, c);
+    }
   }
-  lines.push(...extra.slice(0, Math.max(0, 9 - lines.length)));     // jeder sagt etwas, dann die Beobachtungen
+  // ein bisschen Bauchgefühl: wer die Leiche findet, ist manchen verdächtig, und jeder hat so seine Ahnungen
+  if (reason === 'body') crew.forEach(o => { if (o.name !== reporter && Math.random() < 0.3) auSus(o, reporter, 0.8); });
+  crew.forEach(o => { const p = people[Math.floor(Math.random() * people.length)]; auSus(o, p.name, Math.random()); });
+  // Aussagen: der Fund, dann (Platz sparend) einige Alibis, dann die Beobachtungen
+  const ex = extra.slice(0, 6), nAl = Math.max(2, 8 - ex.length);
+  const al = alibi.filter(a => a.imp).concat(alibi.filter(a => !a.imp).sort(() => Math.random() - 0.5)).slice(0, nAl).sort(() => Math.random() - 0.5);
+  const lines = [head, ...al.map(a => a.s), ...ex].slice(0, 9);
   A.meet = { reason, lines, vote: null, votes: null, t: 0, accuse };
   A.phase = 'meeting'; A.task = null; A.p.vent = -1; SFX.boss();
 }
@@ -7124,10 +7139,14 @@ function auVote(target) {                                            // target: 
   if (target) add(target);
   for (const c of alive) {
     if (c.imp) { add(target && target !== c.name && target !== 'SKIP' ? target : M.accuse || alive.filter(o => !o.imp)[0]?.name || 'SKIP'); continue; }
-    if (c.sus) add(c.sus);
-    else if (M.accuse && M.accuse !== c.name && Math.random() < 0.12) add(M.accuse);     // lässt sich nur selten reinlegen
-    else if (Math.random() < 0.45) add('SKIP');
-    else { const others = names.filter(n => n !== c.name); add(others[Math.floor(Math.random() * others.length)]); }
+    const sc = Object.assign({}, c.sc);
+    if (target && target !== 'SKIP' && target !== c.name && Math.random() < 0.35) sc[target] = (sc[target] || 0) + 1.5;   // mitreißen lassen
+    let best = null, bv = -1;
+    for (const n of names) { if (n === c.name) continue; const v = (sc[n] || 0) + Math.random() * 1.5; if (v > bv) { bv = v; best = n; } }
+    if (bv >= 3.2) add(best);                                        // ziemlich sicher
+    else if (bv >= 1.8 && Math.random() < 0.45) add(best);           // eher unsicher
+    else if (Math.random() < 0.1) add(names.filter(n => n !== c.name)[Math.floor(Math.random() * (names.length - 1))]);   // geraten
+    else add('SKIP');
   }
   M.votes = votes;
   let top = 'SKIP', max = votes.SKIP, tie = false;
@@ -7151,14 +7170,14 @@ function auResume() {
   if (auCheck()) return;
   A.bodies = []; A.phase = 'play';
   auAlive().forEach((c, i) => { const a = i / 7 * Math.PI * 2; c.x = 320 + Math.cos(a) * 50; c.y = 82 + Math.sin(a) * 30; c.path = []; c.wait = 1 + Math.random() * 2; c.saw = null;
-    if (c.sus && !(c.sus === auPName() ? !A.pGhost : A.crew.some(o => o.name === c.sus && !o.dead))) c.sus = null;   // Verdacht merken, solange der Verdächtige noch da ist
+    if (c.sc) for (const n in c.sc) c.sc[n] *= 0.5;                 // Verdacht verblasst mit der Zeit, ganz vergessen wird er aber nicht
     c.reportT = 0; c.vent = null; c.ventTo = null; c.hunt = false; c.killCd = Math.max(c.killCd, 12);
   });
   A.p.x = 320; A.p.y = 120; A.p.vent = -1; A.killCd = Math.max(A.killCd, 12); A.roundT = A.t;
 }
 // Wer gerade in der Nähe steht und hinschaut, bemerkt etwas (die Crew passt aber nicht immer auf)
 function auWitness(x, y, what, killer) {
-  for (const c of auAlive()) if (!c.imp && c !== killer && Math.hypot(c.x - x, c.y - y) < 100 && Math.random() < 0.8) { c.sus = killer.name || auPName(); c.saw = c.saw === 'kill' ? 'kill' : what; if (what === 'kill') c.reportT = 1 + Math.random(); }
+  for (const c of auAlive()) if (!c.imp && c !== killer && Math.hypot(c.x - x, c.y - y) < 100 && Math.random() < 0.6) { const n = killer.name || auPName(); auSus(c, n, what === 'kill' ? 5 : 3.5); if (c.saw !== 'kill') { c.saw = what; c.sawWho = n; } if (what === 'kill') c.reportT = 1 + Math.random(); }
 }
 function auKill(victim, killer) {
   const A = G.au;
