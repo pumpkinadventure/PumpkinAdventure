@@ -1383,7 +1383,7 @@ function goHome() {
   if (G.state.startsWith('mc')) { mcSave(); openPart2(); return; }
   if (G.state.startsWith('fly')) { openPart6(); return; }
   if (G.state === 'au') { openPart10(); return; }
-  if (G.state === 'ch') { openPart11(); return; }
+  if (G.state === 'ch') { if (G.ch && G.ch.lvl >= 10) openPart11b(); else openPart11(); return; }
   if (G.mode === 'dragon' && G.state !== 'part3') { G.mode = 'story'; openPart3(); return; }
   if (G.mode === 'space' && G.state !== 'part4' && G.state !== 'part5') { G.mode = 'story'; if (G.world === 10) openPart10(); else if (G.world === 9) openPart8(); else if (G.world === 8) openPart9(); else if (G.world === 7) openPart7(); else if (G.world === 5) openPart5(); else openPart4(); return; }
   homeBtn.hidden = true;
@@ -1470,7 +1470,7 @@ const inBox = (pt, b) => pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y
 cv.addEventListener('pointermove', e => {
   const pt = canvasPoint(e);
   if (G.state === 'mc' && G.mc) { G.mc.mouse.x = pt.x; G.mc.mouse.y = pt.y; G.mc.mouse.moved = G.mc.time; cv.style.cursor = 'crosshair'; return; }
-  cv.style.cursor = (G.state === 'part5' && inBox(pt, ufoBox())) || G.state === 'part6' || G.state === 'part9' || G.state === 'part8' || G.state === 'part10' || G.state === 'part11' || (G.state === 'part7' && (inBox(pt, PORTAL_BTN) || inBox(pt, RMH_DOOR) || SUDPOL_BTNS.some(bt => inBox(pt, bt)))) || G.state.startsWith('fly') || (G.state === 'title' && inBox(pt, SUN_BTN)) || (G.state === 'part2' && inBox(pt, MOON_BTN)) || G.state === 'part2' || (G.state === 'part3' && (inBox(pt, PORTAL_BTN) || inBox(pt, PLANET_BTN))) || (G.state === 'part5' && (inBox(pt, PORTAL_BTN) || SATURN_BTNS.some(bt => inBox(pt, bt)))) || (G.state === 'part4' && (inBox(pt, PORTAL_BTN) || inBox(pt, SHOP_BTN) || inBox(pt, SATURN_BTN) || (G.space && G.space.shop) || SPACE_BTNS.some(bt => inBox(pt, bt)))) ? 'pointer' : '';
+  cv.style.cursor = (G.state === 'part5' && inBox(pt, ufoBox())) || G.state === 'part6' || G.state === 'part9' || G.state === 'part8' || G.state === 'part10' || G.state === 'part11' || G.state === 'part11b' || (G.state === 'part7' && (inBox(pt, PORTAL_BTN) || inBox(pt, RMH_DOOR) || SUDPOL_BTNS.some(bt => inBox(pt, bt)))) || G.state.startsWith('fly') || (G.state === 'title' && inBox(pt, SUN_BTN)) || (G.state === 'part2' && inBox(pt, MOON_BTN)) || G.state === 'part2' || (G.state === 'part3' && (inBox(pt, PORTAL_BTN) || inBox(pt, PLANET_BTN))) || (G.state === 'part5' && (inBox(pt, PORTAL_BTN) || SATURN_BTNS.some(bt => inBox(pt, bt)))) || (G.state === 'part4' && (inBox(pt, PORTAL_BTN) || inBox(pt, SHOP_BTN) || inBox(pt, SATURN_BTN) || (G.space && G.space.shop) || SPACE_BTNS.some(bt => inBox(pt, bt)))) ? 'pointer' : '';
 });
 cv.addEventListener('pointerdown', e => {
   const pt = canvasPoint(e);
@@ -1484,6 +1484,7 @@ cv.addEventListener('pointerdown', e => {
   if (G.state === 'part10') { part10Click(pt); return; }
   if (G.state === 'au') { auClick(pt); return; }
   if (G.state === 'part11') { part11Click(pt); return; }
+  if (G.state === 'part11b') { part11bClick(pt); return; }
   if (G.state === 'ch') { chClick(pt); return; }
   if (G.state === 'part7' && inBox(pt, RMH_DOOR)) { openPart8(); return; }
   if (G.state === 'part7') { if (inBox(pt, PORTAL_BTN)) openPart6(); else { const i = SUDPOL_BTNS.findIndex(bt => inBox(pt, bt)); if (i >= 0) playSudpol(i); } return; }
@@ -4005,6 +4006,11 @@ function step() {
     case 'ch':
       updateCH();
       break;
+    case 'part11b':
+      updatePart11();
+      ['one', 'two', 'three', 'four', 'five'].forEach((k, i) => { if (pressed[k] && G.state === 'part11b') playCH(10 + i); });
+      if (pressed.enter && G.state === 'part11b') playCH(Math.max(10, chUnlocked() - 1));
+      break;
     case 'part11':
       updatePart11();
       ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'].forEach((k, i) => { if (pressed[k] && G.state === 'part11') playCH(i); });
@@ -5340,6 +5346,7 @@ function render() {
   if (G.state === 'part10') { drawPart10(); return; }
   if (G.state === 'au') { drawAU(); return; }
   if (G.state === 'part11') { drawPart11(); return; }
+  if (G.state === 'part11b') { drawPart11b(); return; }
   if (G.state === 'ch') { drawCH(); return; }
   if (G.state === 'part9') { drawPart9(); return; }
   if (G.state.startsWith('fly')) { drawFly(); return; }
@@ -7014,15 +7021,15 @@ function drawPart10() {
 // ============================================================ Teil 11: Kürbis-Cartoon (inspiriert von Cuphead)
 // Alter Zeichentrick-Stil aus den 1930ern: du schießt mit Kürbiskernen (E halten), springst in der Luft auf Pinkes (Parry),
 // sammelst Super-Karten für EX-Schuss (Q) und Super (R), weichst mit Dash (Shift) aus und hast nur 3 Leben.
-const CH_NAMES = ['TINTENWALD', 'TINTENFASS-THEO', 'JAHRMARKT', 'KAFFEEKANNE KLARA', 'DER WÜRFEL-BARON', 'DIE GEMÜSE-BANDE', 'GEWÄCHSHAUS', 'FLORIFLORA', 'BONBON-FABRIK', 'BARONESS BONBON'];
-const CH_BOSS = [null, 'theo', null, 'klara', 'baron', 'gemuese', null, 'flora', null, 'bonbon'];
-const CH_HP = { theo: 260, klara: 400, baron: 460, gemuese: 420, flora: 460, bonbon: 480 };
-const CH_MARKS = { theo: [0.4, 0.75], klara: [0.35, 0.7], baron: [0.5], gemuese: [0.333, 0.667], flora: [0.55], bonbon: [0.34, 0.7] };          // Phasen-Striche auf dem Fortschrittsbalken
-const CH_PAR = [45, 90, 55, 120, 150, 120, 55, 140, 60, 160];                                            // Zeit für die volle Punktzahl
+const CH_NAMES = ['TINTENWALD', 'TINTENFASS-THEO', 'JAHRMARKT', 'KAFFEEKANNE KLARA', 'DER WÜRFEL-BARON', 'DIE GEMÜSE-BANDE', 'GEWÄCHSHAUS', 'FLORIFLORA', 'BONBON-FABRIK', 'BARONESS BONBON', 'KELLERGASSEN', 'WERNER DIE MAUS', 'WOLKENPFAD', 'GRIMM FEUERHOLZ', 'CARLA MARIA'];
+const CH_BOSS = [null, 'theo', null, 'klara', 'baron', 'gemuese', null, 'flora', null, 'bonbon', null, 'werner', null, 'grimm', 'carla'];
+const CH_HP = { theo: 260, klara: 400, baron: 460, gemuese: 420, flora: 460, bonbon: 480, werner: 460, grimm: 500, carla: 480 };
+const CH_MARKS = { theo: [0.4, 0.75], klara: [0.35, 0.7], baron: [0.5], gemuese: [0.333, 0.667], flora: [0.55], bonbon: [0.34, 0.7], werner: [0.35, 0.7], grimm: [0.45, 0.8], carla: [0.4, 0.75] };          // Phasen-Striche auf dem Fortschrittsbalken
+const CH_PAR = [45, 90, 55, 120, 150, 120, 55, 140, 60, 160, 60, 130, 60, 150, 140];                                            // Zeit für die volle Punktzahl
 const CH_GROUND = 196, CH_G = 0.36, CH_JUMP = 6.4;
 const CH_INK = '#1a1410', CH_CREAM = '#f3e6c4';
-const chUnlocked = () => storeOK ? clamp(Math.max(store.chUnlocked || 1, (store.chGrades || {})[4] ? 6 : 1), 1, CH_NAMES.length) : CH_NAMES.length;   // wer den Baron schon besiegt hat, darf gleich weiter
-const CH_BTNS = CH_NAMES.map((n, i) => ({ x: 62 + (i % 5) * 54, y: 56 + Math.floor(i / 5) * 26, w: 48, h: 23 }));
+const chUnlocked = () => storeOK ? clamp(Math.max(store.chUnlocked || 1, (store.chGrades || {})[4] ? 6 : 1, (store.chGrades || {})[9] ? 11 : 1), 1, CH_NAMES.length) : CH_NAMES.length;   // wer den Baron schon besiegt hat, darf gleich weiter
+const CH_BTNS = CH_NAMES.slice(0, 10).map((n, i) => ({ x: 62 + (i % 5) * 54, y: 56 + Math.floor(i / 5) * 26, w: 48, h: 23 }));
 const CH_DOOR = { x: 296, y: 8, w: 40, h: 46 };                                      // Filmrolle „11“ auf der Teil-10-Seite
 // Run-&-Gun-Level: Boden-Stücke (dazwischen Gruben), Plattformen, Münzen, Gegner, pinke Parry-Sterne
 const CH_RUNS = {
@@ -7050,11 +7057,23 @@ const CH_RUNS = {
     coins: [[412, 130], [1030, 96], [1912, 112], [2235, 128], [2930, 94]],
     pinks: [[1845, 150], [1912, 150], [1979, 150]],                                  // Lutscher-Kette über der großen Grube
     enemies: [['bonbon', 420], ['kirsche', 560], ['biene', 760], ['bonbon', 880], ['pilz', 1050], ['bonbon', 1150], ['klecks', 1350], ['biene', 1450], ['pilz', 1640], ['bonbon', 2100], ['kirsche', 2250], ['biene', 2350], ['blume', 2480], ['bonbon', 2700], ['pilz', 2850], ['biene', 2950], ['bonbon', 3100], ['kirsche', 3200]] },
+  10: { W: 3300, goal: 3220, bg: 'keller',
+    ground: [[0, 600], [648, 1150], [1198, 1750], [1798, 2350], [2398, 2850], [2898, 3300]],
+    plats: [[320, 150, 64], [760, 140, 60], [860, 114, 60], [1450, 146, 70], [2050, 140, 64], [2150, 112, 64], [2600, 146, 64], [3000, 140, 60]],
+    coins: [[352, 132], [890, 96], [1774, 150], [2180, 94], [3030, 122]],
+    pinks: [[1174, 150], [2374, 150], [2874, 150]],
+    enemies: [['klecks', 420], ['bonbon', 560], ['buch', 700], ['pilz', 900], ['kirsche', 1050], ['klecks', 1300], ['blume', 1500], ['buch', 1650], ['bonbon', 1900], ['pilz', 2100], ['klecks', 2250], ['kirsche', 2500], ['buch', 2650], ['blume', 2800], ['bonbon', 3000], ['klecks', 3100]] },
+  12: { W: 3400, goal: 3320, bg: 'wolken',
+    ground: [[0, 500], [548, 900], [948, 1400], [1448, 1700], [1922, 2300], [2348, 2800], [2848, 3400]],
+    plats: [[300, 150, 60], [700, 140, 60], [1150, 146, 64], [1250, 120, 60], [2050, 146, 64], [2550, 140, 60], [2650, 114, 60], [3050, 146, 64]],
+    coins: [[330, 132], [524, 150], [1280, 102], [1812, 112], [2680, 96]],
+    pinks: [[1745, 150], [1812, 150], [1879, 150]],                                  // Stern-Kette über dem großen Wolkenloch
+    enemies: [['biene', 400], ['kirsche', 650], ['buch', 800], ['blume', 1050], ['biene', 1300], ['klecks', 1550], ['kirsche', 2000], ['buch', 2150], ['blume', 2250], ['biene', 2450], ['klecks', 2600], ['kirsche', 2900], ['buch', 3050], ['blume', 3150], ['biene', 3250]] },
 };
-function openPart11() {
+function openPart11(back) {
   G.state = 'part11'; G.stateT = 0; G.mode = 'story';
   form.hidden = true; homeBtn.hidden = false;
-  G.p11 = { x: 120, vx: 0, face: 1, lock: null };
+  G.p11 = { x: back ? VW - 60 : 120, vx: 0, face: back ? -1 : 1, lock: null };
   [262, 330, 392, 523, 392, 523].forEach((f, i) => tone(f, f, 0.12, 'triangle', 0.05, i * 0.11));
 }
 function updatePart11() {
@@ -7063,6 +7082,8 @@ function updatePart11() {
   if (ax) S.face = ax;
   S.vx = clamp(S.vx + ax * 0.15, -1.8, 1.8) * (ax ? 1 : 0.85);
   S.x = clamp(S.x + S.vx, 20, VW - 20);
+  if (G.state === 'part11' && chIsland2() && S.x >= VW - 21) openPart11b();      // rechts weiter zur Insel 2
+  else if (G.state === 'part11b' && S.x <= 21) openPart11(true);                  // links zurück zur Insel 1
 }
 function part11Click(pt) {
   if (inBox(pt, PORTAL_BTN)) { openPart10(); return; }
@@ -7090,6 +7111,9 @@ function playCH(i) {
     if (boss === 'gemuese') Object.assign(C.b, { x: 286, w: 48, h: 44, form: 0, t: 1.8 });
     if (boss === 'flora') { Object.assign(C.b, { x: 304, w: 46, h: 100, reach: 0 }); C.plats = [{ x: 40, y: 156, w: 56 }, { x: 130, y: 146, w: 56 }, { x: 220, y: 156, w: 56 }]; }   // Blätter niedrig genug zum Draufspringen
     if (boss === 'bonbon') Object.assign(C.b, { x: 292, w: 34, h: 58 });
+    if (boss === 'werner') Object.assign(C.b, { x: 300, w: 44, h: 50 });
+    if (boss === 'grimm') { Object.assign(C.b, { x: 296, w: 88, h: 156 }); C.plats = [{ x: 60, y: 150, w: 56 }, { x: 170, y: 150, w: 56 }]; }
+    if (boss === 'carla') { Object.assign(C.b, { x: 280, w: 90, h: 180 }); C.plane = true; C.ground = []; Object.assign(C.p, { x: 40, y: 100, w: 16, h: 10 }); }
     C.b.y = CH_GROUND - C.b.h;
   }
   G.state = 'ch'; G.stateT = 0; form.hidden = true; homeBtn.hidden = false;
@@ -7106,7 +7130,7 @@ function chMakeEnemy(type, x) {
   return e;
 }
 const chOnGround = (x1, x2) => G.ch.ground.some(([a, b]) => x2 > a && x1 < b);
-const chPBox = () => { const p = G.ch.p; return p.duck ? { x: p.x, y: p.y + 9, w: p.w, h: 11 } : { x: p.x, y: p.y, w: p.w, h: p.h }; };
+const chPBox = () => { const p = G.ch.p; if (G.ch.plane) return { x: p.x, y: p.y, w: 16, h: 10 }; return p.duck ? { x: p.x, y: p.y + 9, w: p.w, h: 11 } : { x: p.x, y: p.y, w: p.w, h: p.h }; };
 function chOver(box, o) {                                              // Kasten gegen Kasten oder Kreis
   if (o.w != null) return box.x < o.x + o.w && box.x + box.w > o.x && box.y < o.y + o.h && box.y + box.h > o.y;
   const cx = clamp(o.x, box.x, box.x + box.w), cy = clamp(o.y, box.y, box.y + box.h);
@@ -7135,6 +7159,7 @@ function chPlayer() {
     C.eb = C.eb.filter(s => !(chOver(beam, s) && !s.wave));
     return;
   }
+  if (C.plane) { chPlane(p, C); return; }
   p.duck = K.down && p.onGround && p.dashT <= 0;
   if (pressed.one) { p.weapon = 0; chMsg('KERNSCHUSS: WEIT UND GERADE', 1.2); }
   if (pressed.two) { p.weapon = 1; chMsg('STREUSCHUSS: KURZ, ABER STARK', 1.2); }
@@ -7240,13 +7265,14 @@ function chShots() {
     s.x += s.vx; s.y += s.vy; if (s.grav) s.vy += s.grav;
     if (s.kind === 'lid' || s.boom) { s.vx += 0.075; if (s.vx > 0) s.back = true; if (s.back) s.y += (CH_GROUND - 12 - s.y) * 0.08; }
     if (s.home > 0) { s.home -= DT; const a = Math.atan2(C.p.y + 10 - s.y, C.p.x + 6 - s.x); s.vx += (Math.cos(a) * 1.6 - s.vx) * 0.05; s.vy += (Math.sin(a) * 1.6 - s.vy) * 0.05; }
-    if (s.sine) { s.st = (s.st || 0) + DT; s.y = s.by + Math.sin(s.st * 3.5) * 34; }
+    if (s.sine) { s.st = (s.st || 0) + DT; s.y = s.by + Math.sin(s.st * 3.5) * 34 * (s.sine === true ? 1 : s.sine); }
+    if (s.bomb && s.y >= CH_GROUND - s.r) { s.dead = true; for (const v of [-2, 2]) C.eb.push({ x: s.x, y: CH_GROUND - 4, r: 3, vx: v, vy: 0, kind: 'spark', life: 1.4 }); chPuff(s.x, CH_GROUND - 4, '#ff8a1c', 6, 1.6); tone(150, 60, 0.12, 'square', 0.04); }
     if (s.kind === 'fseed' && s.y >= CH_GROUND - 4) { s.dead = true; C.hz.push({ kind: 'thorn', x: s.x, warn: 0, act: 3, w: 24 }); chPuff(s.x, CH_GROUND, '#5a8a3a', 5, 1.2); }
     if (s.bounce && s.y + (s.r || s.h) >= CH_GROUND) { s.y = CH_GROUND - (s.r || s.h); s.vy = -s.bounce; tone(200, 140, 0.05, 'square', 0.03); }
     if (s.roll && (s.x < 6 || s.x > VW - 6) && !s.turned) { s.turned = true; s.vx = -s.vx; }
     s.life = (s.life || 8) - DT;
   }
-  C.eb = C.eb.filter(s => !s.dead && s.life > 0 && s.x > C.camX - 80 && s.x < C.camX + VW + 80 && s.y < VH + 30);
+  C.eb = C.eb.filter(s => !s.dead && s.life > 0 && s.x > C.camX - 80 && s.x < C.camX + VW + 80 && s.y < VH + 30 && s.y > -60);
 }
 // ---------- Gegner im Run & Gun
 function chEnemies() {
@@ -7291,8 +7317,8 @@ function chBoss() {
   const C = G.ch, b = C.b, p = C.p; if (!b) return;
   b.anim += DT; if (b.hurtT > 0) b.hurtT -= DT;
   const dx = p.x + p.w / 2 - (b.x + b.w / 2), frac = b.hp / b.max;
-  const ph = b.kind === 'baron' ? (frac > 0.5 ? 1 : 2) : b.kind === 'flora' ? (frac > 0.45 ? 1 : 2) : b.kind === 'gemuese' ? (frac > 0.667 ? 1 : frac > 0.333 ? 2 : 3) : b.kind === 'bonbon' ? (frac > 0.66 ? 1 : frac > 0.3 ? 2 : 3) : frac > (b.kind === 'theo' ? 0.6 : 0.65) ? 1 : frac > (b.kind === 'theo' ? 0.25 : 0.3) ? 2 : 3;
-  if (ph !== b.ph) { b.ph = ph; b.seq = 0; chMsg({ theo: ['', '', 'THEO WIRD WÜTEND!', 'THEO KOCHT ÜBER!'], klara: ['', '', 'KLARA SPRUDELT VOR WUT!', 'JETZT WIRD ES HEISS!'], baron: ['', '', 'DER BARON SETZT ALLES!'], gemuese: ['', '', 'DIE ZWIEBEL (SOĞAN) WEINT!', 'DIE SCHARFE PAPRIKA (BIBER)!'], flora: ['', '', 'FLORIFLORA WIRD WILD!'], bonbon: ['', '', 'DIE BARONESS WIRD SAUER!', 'JETZT FLIEGT IHR KOPF!'] }[b.kind][ph], 1.8); SFX.boss(); }
+  const ph = b.kind === 'baron' ? (frac > 0.5 ? 1 : 2) : b.kind === 'flora' ? (frac > 0.45 ? 1 : 2) : b.kind === 'gemuese' ? (frac > 0.667 ? 1 : frac > 0.333 ? 2 : 3) : b.kind === 'bonbon' ? (frac > 0.66 ? 1 : frac > 0.3 ? 2 : 3) : b.kind === 'werner' ? (frac > 0.65 ? 1 : frac > 0.3 ? 2 : 3) : b.kind === 'grimm' ? (frac > 0.55 ? 1 : frac > 0.2 ? 2 : 3) : b.kind === 'carla' ? (frac > 0.6 ? 1 : frac > 0.25 ? 2 : 3) : frac > (b.kind === 'theo' ? 0.6 : 0.65) ? 1 : frac > (b.kind === 'theo' ? 0.25 : 0.3) ? 2 : 3;
+  if (ph !== b.ph) { b.ph = ph; b.seq = 0; chMsg({ theo: ['', '', 'THEO WIRD WÜTEND!', 'THEO KOCHT ÜBER!'], klara: ['', '', 'KLARA SPRUDELT VOR WUT!', 'JETZT WIRD ES HEISS!'], baron: ['', '', 'DER BARON SETZT ALLES!'], gemuese: ['', '', 'DIE ZWIEBEL (SOĞAN) WEINT!', 'DIE SCHARFE PAPRIKA (BIBER)!'], flora: ['', '', 'FLORIFLORA WIRD WILD!'], bonbon: ['', '', 'DIE BARONESS WIRD SAUER!', 'JETZT FLIEGT IHR KOPF!'], werner: ['', '', 'WERNER HOLT DEN FLAMMENWERFER!', 'DOSE KAPUTT – DIE KATZE KOMMT!'], grimm: ['', '', 'GRIMM SPUCKT FEUER!', 'GRIMM HAT DREI KÖPFE!'], carla: ['', '', 'CARLA MARIA WIRD WÜTEND!', 'FELSWÄNDE AUS DEM MEER!'] }[b.kind][ph], 1.8); SFX.boss(); }
   b.t -= DT;
   const dir = b.x + b.w / 2 > VW / 2 ? -1 : 1, mx = dir < 0 ? b.x - 4 : b.x + b.w + 4;   // Angriffe kommen von der Seite des Bosses
   const fire = o => C.eb.push(Object.assign({ life: 9, vx: 0, vy: 0 }, o));   // ohne vy würden waagerechte Geschosse sofort verschwinden
@@ -7393,6 +7419,7 @@ function chBoss() {
     }
   }
   chBoss2(b, ph, dx, fire);
+  chBoss3(b, ph, dx, fire);
   if (p.inv <= 0 && C.phase === 'play' && chOver(chPBox(), chBossBox())) chHurt();
 }
 // ---------- Teil 11, Level 6–10: Gemüse-Bande vom Basar, Floriflora, Baroness Bonbon
@@ -7524,6 +7551,192 @@ function chDrawBoss2(b) {
     if (fly) ctx.restore();
   }
 }
+// ---------- Teil 11, Insel 2 (Level 11–15): Werner die Maus, Grimm Feuerholz, Carla Maria (Fluglevel)
+const chIsland2 = () => !storeOK || !!(store.chGrades || {})[9];
+const CH_BTNS2 = [10, 11, 12, 13, 14].map((n, i) => ({ x: 62 + i * 54, y: 62, w: 48, h: 23 }));
+function openPart11b(back) {
+  G.state = 'part11b'; G.stateT = 0; G.mode = 'story';
+  form.hidden = true; homeBtn.hidden = false;
+  G.p11 = { x: back ? VW - 60 : 40, vx: 0, face: back ? -1 : 1, lock: null };
+  [330, 392, 494, 587, 494, 659].forEach((f, i) => tone(f, f, 0.12, 'triangle', 0.05, i * 0.11));
+}
+function part11bClick(pt) {
+  const i = CH_BTNS2.findIndex(bt => inBox(pt, bt));
+  if (i >= 0) playCH(10 + i);
+}
+function chBoss3(b, ph, dx, fire) {
+  const C = G.ch, p = C.p;
+  if (b.kind === 'werner') {                                         // Werner die Maus in ihrer Blechdose
+    if (ph === 3 && !b.broken) { b.broken = true; Object.assign(b, { w: 20, h: 22, y: CH_GROUND - 22, state: 'idle', t: 1.4, seq: 0 }); C.shake = 6; SFX.rock(); chPuff(b.x + 10, CH_GROUND - 20, '#b8b8c8', 16, 3); }
+    if (b.state === 'idle') {
+      b.face = dx < 0 ? -1 : 1;
+      if (b.t <= 0) { const plan = [null, ['drive', 'bombs', 'drive', 'screws'], ['flame', 'bombs', 'flame', 'screws'], ['run', 'paws', 'run', 'paws']][ph]; b.state = plan[b.seq++ % plan.length]; b.t = b.state === 'flame' ? 0.9 : 0.4; b.n = 0; b.high = Math.random() < 0.5; if (b.state === 'flame') chMsg(b.high ? 'FLAMMENWERFER OBEN: DUCKEN!' : 'FLAMMENWERFER UNTEN: WEG DA!', 1.1); }
+    } else if (b.state === 'drive') {                                // die Dose fährt hin und her
+      if (b.t <= 0) { b.x += b.n ? 1.3 : -1.3; if (!b.n && b.x <= 200) b.n = 1; if (b.n && b.x >= 300) { b.x = 300; b.state = 'idle'; b.t = 0.6; } }
+    } else if (b.state === 'bombs') {                                // Kirschbomben im Bogen, platzen in zwei Funken
+      if (b.t <= 0) { fire({ x: b.x + 10, y: b.y + 4, r: 6, vx: clamp(dx / 60, -3, 3) * rnd(0.8, 1.1), vy: -4.6, grav: 0.15, kind: 'cherry', pink: b.n === 2, bomb: true }); tone(300, 200, 0.08, 'triangle', 0.04); b.n++; b.t = 0.7; if (b.n >= 3) { b.state = 'idle'; b.t = 1.2; } }
+    } else if (b.state === 'screws') {                               // hüpfende Schrauben
+      if (b.t <= 0) { fire({ x: b.x, y: b.y + 10, r: 4, vx: -rnd(2, 3), vy: -3, grav: 0.2, bounce: 4.4, kind: 'screw' }); b.n++; b.t = 0.7; if (b.n >= 3) { b.state = 'idle'; b.t = 1.5; } }
+    } else if (b.state === 'flame') {                                // Flammenwerfer: oben ducken, unten Abstand halten
+      if (b.t <= 0 && b.n === 0) { b.n = 1; b.jet = 0; b.jetT = 1.2; tone(120, 80, 0.8, 'sawtooth', 0.04); }
+      if (b.n === 1) { b.jet = Math.min(150, b.jet + 6); b.jetT -= DT; if (b.jetT <= 0) { b.n = 2; } }
+      if (b.n === 2) { b.jet -= 8; if (b.jet <= 0) { b.jet = 0; b.state = 'idle'; b.t = 0.8; } }
+      const jb = chJetBox(b); if (jb && p.inv <= 0 && chOver(chPBox(), jb)) chHurt();
+    } else if (b.state === 'run') {                                  // Phase 3: die Maus flitzt über den Boden – drüber springen!
+      if (b.n === 0) { b.n = 1; b.vx = b.x > VW / 2 ? -3.2 : 3.2; chMsg('DIE MAUS FLITZT! SPRING!', 0.9); }
+      b.x += b.vx; if (b.x < 8 || b.x > VW - 8 - b.w) { b.x = clamp(b.x, 8, VW - 8 - b.w); b.state = 'idle'; b.t = 0.8; }
+    } else if (b.state === 'paws') {                                 // die Katze haut mit der Pfote zu
+      if (b.t <= 0) { C.hz.push({ kind: 'paw', x: clamp(p.x + 6, 24, VW - 24), warn: 0.9, act: 0.35, w: 44 }); b.n++; b.t = 1; if (b.n >= 3) { b.state = 'idle'; b.t = 1; } }
+    }
+  } else if (b.kind === 'grimm') {                                   // Grimm Feuerholz, der Drache über den Wolken
+    if (b.state === 'idle') {
+      if (b.t <= 0) { const plan = [null, ['meteor', 'rings', 'meteor', 'rings'], ['pillars', 'breath', 'rings', 'breath'], ['triple', 'pillars', 'triple']][ph]; b.state = plan[b.seq++ % plan.length]; b.t = 0.5; b.n = 0; }
+    } else if (b.state === 'meteor') {                               // Feuerbälle in Wellenlinien
+      if (b.t <= 0) { fire({ x: b.x, y: 110, by: 120, r: 7, vx: -2.4, kind: 'fireball', sine: true, pink: b.n === 1 }); tone(200, 120, 0.15, 'sawtooth', 0.04); b.n++; b.t = 0.9; if (b.n >= 3) { b.state = 'idle'; b.t = 1.4; } }
+    } else if (b.state === 'rings') {                                // Feuerringe aus den Augen, genau auf dich gezielt
+      if (b.t <= 0) {
+        if (b.n === 0) { b.aim = Math.atan2(p.y + 10 - 62, p.x + 6 - (b.x + 8)); chMsg('FEUERRINGE!', 0.8); }
+        fire({ x: b.x + 8, y: 62, r: 5, vx: Math.cos(b.aim) * 2.4, vy: Math.sin(b.aim) * 2.4, kind: 'ring', pink: b.n === 3 }); b.n++; b.t = 0.2; if (b.n >= 4) { b.state = 'idle'; b.t = 1.5; }
+      }
+    } else if (b.state === 'pillars') {                              // Feuersäulen aus den Wolken
+      if (b.n === 0) { [p.x + 6, rnd(20, 280), rnd(20, 280)].forEach((x, k) => C.hz.push({ kind: 'fire', x, warn: 0.9 + k * 0.3, act: 0.8, w: 18 })); b.n = 1; b.t = 2.2; }
+      if (b.t <= 0) { b.state = 'idle'; b.t = 0.4; }
+    } else if (b.state === 'breath') {                               // Feueratem rollt über die Wolken
+      if (b.t <= 0) { fire({ x: b.x - 30, y: CH_GROUND - 18, w: 34, h: 18, vx: -2.8, wave: true, kind: 'firewave' }); SFX.rock(); b.state = 'idle'; b.t = 1.6; }
+    } else if (b.state === 'triple') {                               // Phase 3: drei Köpfe spucken auf drei Höhen
+      if (b.t <= 0) { const lane = [CH_GROUND - 64, CH_GROUND - 25, CH_GROUND - 8][b.n % 3]; fire({ x: b.x, y: lane, r: 6, vx: -3, kind: 'fireball', pink: b.n === 4 }); b.n++; b.t = 0.55; if (b.n >= 6) { b.state = 'idle'; b.t = 1.2; } }
+    }
+  } else if (b.kind === 'carla') {                                   // Carla Maria, die Meerjungfrau (Fluglevel)
+    b.y = 30 + Math.sin(b.anim * 0.8) * 6;
+    if (b.state === 'idle') {
+      if (b.t <= 0) { const plan = [null, ['fish', 'bubbles', 'fish', 'bubbles'], ['eel', 'puffer', 'fish', 'eel'], ['wall', 'eel', 'wall', 'puffer']][ph]; b.state = plan[b.seq++ % plan.length]; b.t = 0.4; b.n = 0; }
+    } else if (b.state === 'fish') {                                 // Fische schwimmen durch die Luft
+      if (b.t <= 0) { const y = rnd(24, 196); fire({ x: b.x + 10, y, by: y, r: 6, vx: -2.4, kind: 'fish', sine: 0.3, pink: b.n === 2 }); b.n++; b.t = 0.45; if (b.n >= 6) { b.state = 'idle'; b.t = 1; } }
+    } else if (b.state === 'bubbles') {                              // Blasen steigen aus dem Meer
+      if (b.t <= 0) { fire({ x: rnd(30, 270), y: VH + 8, r: 6, vx: 0, vy: -1.4, kind: 'bubble', pink: b.n === 3, life: 6 }); b.n++; b.t = 0.35; if (b.n >= 7) { b.state = 'idle'; b.t = 1.2; } }
+    } else if (b.state === 'eel') {                                  // Zitteraal-Blitze quer über den Himmel
+      if (b.n === 0) { const ys = [p.y + 5, rnd(30, 190)]; ys.forEach((y, k) => C.hz.push({ kind: 'zap', x: 0, y, warn: 0.9 + k * 0.4, act: 0.7, w: 0 })); b.n = 1; b.t = 2.2; chMsg('BLITZE! FLIEG HOCH ODER RUNTER!', 1); }
+      if (b.t <= 0) { b.state = 'idle'; b.t = 0.4; }
+    } else if (b.state === 'puffer') {                               // Kugelfische schaukeln auf und ab
+      if (b.t <= 0) { const y = rnd(60, 160); fire({ x: b.x + 10, y, by: y, r: 9, vx: -1.3, kind: 'puffer', sine: 1.4, life: 9 }); b.n++; b.t = 0.9; if (b.n >= 3) { b.state = 'idle'; b.t = 1.4; } }
+    } else if (b.state === 'wall') {                                 // Phase 3: Felswände mit einer Lücke
+      if (b.t <= 0) {
+        const gap = rnd(30, 150);
+        for (let y = 0; y < VH; y += 22) if (y + 22 < gap || y > gap + 52) fire({ x: 290, y, w: 18, h: 22, vx: -1.7, wave: true, kind: 'rock', life: 9 });
+        chMsg('FLIEG DURCH DIE LÜCKE!', 1); b.n++; b.t = 2.6; if (b.n >= 2) { b.state = 'idle'; b.t = 1.5; }
+      }
+    }
+  }
+}
+function chJetBox(b) {                                                // Werners Flammenwerfer
+  if (b.kind !== 'werner' || b.state !== 'flame' || !(b.jet > 0)) return null;
+  return { x: b.x - b.jet, y: b.high ? CH_GROUND - 34 : CH_GROUND - 16, w: b.jet, h: b.high ? 18 : 16 };
+}
+// Fluglevel: frei fliegen (WASD oder Pfeile), das Flugzeug schießt von allein, Shift = Parry
+function chPlane(p, C) {
+  const sp = 2.2, mx = (K.right ? 1 : 0) - (K.left ? 1 : 0), my = (K.down ? 1 : 0) - (K.jump || K.wShoot ? 1 : 0);
+  p.x = clamp(p.x + mx * sp, 4, 290); p.y = clamp(p.y + my * sp, 14, VH - 14); p.vx = mx; p.anim += 0.2; p.face = 1; p.onGround = false;
+  if (p.shootCd > 0) p.shootCd -= DT;
+  if (p.exCd > 0) p.exCd -= DT;
+  if (p.parryCd > 0) p.parryCd -= DT;
+  if (p.shootCd <= 0) { C.pb.push({ x: p.x + 18, y: p.y + 5, vx: 7, vy: 0, life: 0.9, dmg: 1, r: 2.5 }); p.shootCd = 0.11; if (C.frame % 3 === 0) tone(520, 380, 0.03, 'square', 0.012); }
+  if (pressed.bow) {
+    if (p.cards >= 1 && p.exCd <= 0) { p.cards -= 1; C.cardsUsed++; p.exCd = 0.5; C.pb.push({ x: p.x + 18, y: p.y + 5, vx: 5, vy: 0, life: 1.6, dmg: 12, r: 7, ex: true, hit: [] }); tone(300, 900, 0.18, 'square', 0.05); }
+    else if (p.cards < 1) chMsg('EX BRAUCHT 1 KARTE', 1);
+  }
+  if (pressed.super) {
+    if (p.cards >= 5) { p.cards = 0; C.cardsUsed += 5; p.superT = 1.3; [392, 523, 659, 784].forEach((f, i) => tone(f, f, 0.12, 'square', 0.06, i * 0.06)); chMsg('SUPER-KÜRBISSTRAHL!', 1.3); }
+    else chMsg('SUPER BRAUCHT 5 KARTEN', 1);
+  }
+  if (pressed.run && p.parryCd <= 0) { p.parryWin = 0.2; p.parryCd = 0.32; }
+  if (p.parryWin > 0) {
+    p.parryWin -= DT;
+    const box = { x: p.x - 7, y: p.y - 7, w: 30, h: 24 }, shot = C.eb.find(s => s.pink && !s.dead && chOver(box, s));
+    if (shot) { shot.dead = true; p.parryWin = 0; C.parries++; C.stop = 0.07; chAddCards(1); chPuff(shot.x, shot.y, '#ff6ab0', 10, 2.2); C.fx.push({ x: shot.x, y: shot.y, txt: 'PARRY!', vx: 0, vy: -0.6, life: 0.8, c: '#ff6ab0' }); tone(1100, 1900, 0.12, 'triangle', 0.07); }
+  }
+}
+function chDrawPlane(x, y, alpha) {                                   // kleines rotes Flugzeug mit dem Kürbis als Pilot
+  ctx.save(); ctx.globalAlpha = alpha;
+  chOval(x + 8, y + 6, 10, 4.5, '#d62828', 1.6); chBox(x + 2, y + 6, 10, 3, '#b81818', 1.2, 1);
+  chOval(x + 18, y + 6, 1.6, 5, 'rgba(240,240,240,.7)', 1);
+  chBox(x - 3, y + 1, 4, 6, '#d62828', 1.2, 1);
+  chOval(x + 8, y - 1, 5, 4.4, '#f08a1c', 1.2); rect(x + 7, y - 6, 2, 2, '#3f7d20'); chEyes(x + 9, y - 1, 0.4, 0.6);
+  ctx.restore();
+}
+function chDrawBoss3(b) {
+  const x = b.x, y = b.y, cx = x + b.w / 2, t = b.anim;
+  if (b.kind === 'werner') {
+    if (b.ph === 3) {                                                // im Hintergrund lauert die Katze
+      ctx.globalAlpha = 0.85; chOval(250, 40, 70, 40, '#5a4a6a', 2); chOval(212, 6, 14, 18, '#5a4a6a', 2); chOval(288, 6, 14, 18, '#5a4a6a', 2);
+      chOval(228, 40, 10, 8, '#f4e04a', 1.4); chOval(272, 40, 10, 8, '#f4e04a', 1.4); chOval(228, 40, 2, 6, CH_INK, 0); chOval(272, 40, 2, 6, CH_INK, 0); ctx.globalAlpha = 1;
+    }
+    if (!b.broken) {                                                 // Blechdose auf Rädern
+      chBox(x + 2, y + 10, b.w - 4, b.h - 18, '#b8b8c8', 2, 4); chBox(x + 2, y + 18, b.w - 4, 14, '#e8312f', 1.2, 0); text('BOHNEN', cx, y + 21, 8, '#ffffff', 'center', null);
+      for (const k of [-14, 0, 14]) { ctx.save(); ctx.translate(cx + k, y + b.h - 6); ctx.rotate(b.x * 0.1); chOval(0, 0, 6, 6, '#3a3a44', 1.4); rect(-1, -5, 2, 10, '#8a8a98'); ctx.restore(); }
+      if (b.state === 'flame') chOval(x + 2, (b.high ? CH_GROUND - 25 : CH_GROUND - 8), 5, 5, '#ff8a1c', 1.4);
+      const my = y + 2;                                              // die Maus schaut oben raus
+      chOval(cx - 8, my - 6, 5, 5, '#8a8a98', 1.2); chOval(cx + 8, my - 6, 5, 5, '#8a8a98', 1.2); chOval(cx, my, 9, 8, '#a8a8b8', 1.6); chOval(cx - 8, my + 2, 2, 1.6, '#ff9ab0', 0);
+      chEyes(cx - 2, my - 1, 0.7, -0.6); chBox(cx - 7, my - 11, 14, 4, '#5a6a3a', 1.2, 1);
+    } else {                                                          // nur noch die Maus, sie flitzt herum
+      const run = b.state === 'run', leg = run ? Math.sin(t * 20) * 3 : 0;
+      chLine([x + 6, y + 18, x + 6 + leg, y + 22], 1.4); chLine([x + 14, y + 18, x + 14 - leg, y + 22], 1.4);
+      chOval(cx, y + 12, 9, 8, '#a8a8b8', 1.6); chOval(cx - 6, y + 2, 4, 4, '#8a8a98', 1.2); chOval(cx + 6, y + 2, 4, 4, '#8a8a98', 1.2);
+      chEyes(cx + b.face * 2, y + 10, 0.6, b.face * 0.5); chLine([cx - b.face * 9, y + 14, cx - b.face * 14, y + 10, cx - b.face * 16, y + 14], 1.2);
+    }
+    const jb = chJetBox(b);
+    if (jb) { chBox(jb.x, jb.y, jb.w, jb.h, '#ff8a1c', 1.6, 6); rect(jb.x + 4, jb.y + jb.h / 2 - 2, jb.w - 8, 4, '#ffe14a'); }
+  } else if (b.kind === 'grimm') {                                   // grüner Drache mit langem Hals
+    const heads = b.ph === 3 ? [[-10, 46], [-14, 86], [-12, 126]] : [[0, 50]];
+    chOval(cx + 16, CH_GROUND - 40, 46, 48, '#4a9a3a', 2);           // Bauch
+    chOval(cx + 10, CH_GROUND - 36, 26, 34, '#d8e8a0', 1.4);
+    for (let k = 0; k < 4; k++) rect(cx - 6, CH_GROUND - 62 + k * 12, 32, 1.4, '#a8c070');
+    ctx.save(); ctx.translate(cx + 40, 70); ctx.rotate(Math.sin(t) * 0.08); chOval(0, 0, 30, 18, '#3a7a2a', 1.8); ctx.restore();   // Flügel
+    for (const [hx0, hy0] of heads) {
+      const hx = x + hx0 + 12, hy = hy0 + Math.sin(t * 1.5 + hy0) * 3;
+      chLine([cx + 6, CH_GROUND - 70, hx + 24, (hy + CH_GROUND - 70) / 2, hx + 12, hy + 6], 10, '#4a9a3a');
+      chOval(hx + 4, hy, 16, 12, '#4a9a3a', 1.8); chOval(hx - 8, hy + 4, 7, 5, '#5aaa4a', 1.4);
+      chOval(hx - 10, hy + 2, 1.4, 1, CH_INK, 0); chEyes(hx + 4, hy - 4, 0.9, -0.8);
+      chLine([hx - 12, hy + 7, hx - 4, hy + 9, hx + 4, hy + 8], 1.4);
+      chOval(hx + 10, hy - 12, 3, 5, '#f4d040', 1.2);                // Hörnchen
+    }
+    chOval(cx + 40, CH_GROUND - 2, 30, 6, '#ffffff', 1.4);            // Wolke unter ihm
+  } else if (b.kind === 'carla') {                                   // Meerjungfrau taucht aus dem Meer
+    const sx = x + 50;
+    chOval(sx, y + 150, 30, 40, '#3aa898', 2);                       // Fischschwanz unten
+    chBox(sx - 20, y + 60, 40, 70, '#f0c8a0', 2, 14);                // Oberkörper
+    chOval(sx - 9, y + 76, 9, 7, '#f4a0c0', 1.4); chOval(sx + 9, y + 76, 9, 7, '#f4a0c0', 1.4);
+    chLine([sx - 20, y + 70, sx - 34, y + 80, sx - 40, y + 94], 3.4); chOval(sx - 40, y + 96, 4, 3.4, '#f0c8a0', 1.2);
+    for (let k = 0; k < 7; k++) chLine([sx - 18 + k * 6, y + 14, sx - 26 + k * 7 + Math.sin(t * 2 + k) * 3, y + 50, sx - 22 + k * 8, y + 96], 3, '#8a3aa8');   // Haare
+    chOval(sx, y + 38, 20, 22, '#f0c8a0', 2); chEyes(sx - 4, y + 34, 1.3, -0.9);
+    chLine([sx - 10, y + 48, sx - 4, y + (b.ph >= 2 ? 46 : 52), sx + 2, y + 48], 1.6); chOval(sx - 14, y + 44, 3, 1.8, '#ff9ab0', 0);
+    chBox(sx - 10, y + 12, 20, 6, '#ffd23f', 1.2, 1); for (let k = 0; k < 3; k++) rect(sx - 8 + k * 7, y + 8, 3, 5, '#ffd23f');   // Krone
+  }
+}
+function drawPart11b() {
+  const S = G.p11 || { x: 40, face: 1, vx: 0 };
+  const gr = ctx.createLinearGradient(0, 0, 0, VH); gr.addColorStop(0, '#d8ecf4'); gr.addColorStop(1, '#f4ecc8'); ctx.fillStyle = gr; ctx.fillRect(0, 0, VW, VH);
+  for (let i = 0; i < 5; i++) chOval(40 + i * 90, 156 + (i % 2) * 6, 60, 22, '#ffffff', 1.2);
+  chBox(0, 168, VW, 24, '#5aa8d8', 1.4, 0); for (let i = 0; i < 12; i++) chLine([i * 34, 176, i * 34 + 8, 172, i * 34 + 16, 176], 1.2, '#ffffff');   // Meer
+  chBox(0, 188, VW, 40, '#d8b878', 1.6, 0);
+  chDrawPumpkin(S.x, 188, S.face, Math.abs(S.vx) > 0.2 ? 'run' : 'stand', G.t * 6, 1);
+  text('KÜRBIS-ABENTEUER', VW / 2 + 1, 8, 16, '#f08a1c', 'center', CH_INK);
+  text('TEIL 11 · INSEL 2', VW / 2, 27, 16, '#c8202a', 'center', CH_INK);
+  text('MAUS, DRACHE UND MEERJUNGFRAU', VW / 2, 46, 8, CH_INK, 'center', null);
+  const un = chUnlocked(), lock = S.lock && G.t - S.lock.t < 1.5 ? S.lock : null, grades = store.chGrades || {};
+  CH_BTNS2.forEach((bt, k) => {
+    const i = 10 + k, open = i < un, boss = !!CH_BOSS[i];
+    chBox(bt.x, bt.y, bt.w, bt.h, open ? (boss ? '#f4d0a0' : '#f4ead0') : '#b8a888', 1.4, 3);
+    text(String(k + 1), bt.x + bt.w / 2, bt.y + 2, 8, open ? CH_INK : '#7a6a58', 'center', null);
+    text(!open ? 'ZU' : grades[i] ? `NOTE ${grades[i]}` : i === 14 ? 'FLUG' : boss ? 'BOSS' : 'LAUFEN', bt.x + bt.w / 2, bt.y + 12, 8, open ? '#c8202a' : '#7a6a58', 'center', null);
+  });
+  if (lock) text(`ERST LEVEL ${lock.i} SCHAFFEN!`, VW / 2, 94, 8, '#c8202a', 'center', null);
+  else if (grades[14]) text('CARLA MARIA IST BESIEGT! ★', VW / 2, 94, 8, '#c8202a', 'center', null);
+  else text('KLICK ODER 1-5 = LEVEL STARTEN', VW / 2, 94, 8, CH_INK, 'center', null);
+  text('W HALTEN = SCHIESSEN · LEERTASTE = SPRINGEN', VW / 2, 106, 8, CH_INK, 'center', null);
+  text('FLUGLEVEL: WASD = FLIEGEN, SCHIESST VON ALLEIN, SHIFT = PARRY', VW / 2, 116, 8, '#2a5a9a', 'center', null);
+  text('← ZURÜCK ZU INSEL 1', 8, 140, 8, CH_INK, 'left', null);
+  text('A/D = LAUFEN · H = TEIL 1', VW / 2, 212, 8, '#fff7e0', 'center', CH_INK);
+}
 function chHazards() {
   const C = G.ch;
   for (const h of C.hz) {
@@ -7536,7 +7749,7 @@ function chHazards() {
     } continue; }
     if (h.act != null) {
       h.act -= DT; if (h.act <= 0) { h.done = true; continue; }
-      const box = h.kind === 'steam' ? { x: h.x - 10, y: 30, w: 20, h: CH_GROUND - 30 } : h.kind === 'vine' ? { x: h.x - 6, y: CH_GROUND - 96, w: 12, h: 96 } : { x: h.x - 12, y: CH_GROUND - 8, w: 24, h: 8 };
+      const box = h.kind === 'steam' ? { x: h.x - 10, y: 30, w: 20, h: CH_GROUND - 30 } : h.kind === 'vine' ? { x: h.x - 6, y: CH_GROUND - 96, w: 12, h: 96 } : h.kind === 'paw' ? { x: h.x - 22, y: 0, w: 44, h: CH_GROUND } : h.kind === 'fire' ? { x: h.x - 9, y: 30, w: 18, h: CH_GROUND - 30 } : h.kind === 'zap' ? { x: 0, y: h.y - 7, w: 300, h: 14 } : { x: h.x - 12, y: CH_GROUND - 8, w: 24, h: 8 };
       if (C.p.inv <= 0 && chOver(chPBox(), box)) chHurt();
     }
   }
@@ -7547,10 +7760,10 @@ function updateCH() {
   C.t += DT; if (C.msgT > 0) C.msgT -= DT; if (C.shake > 0) C.shake = Math.max(0, C.shake - 0.3);
   for (const f of C.fx) { f.x += f.vx; f.y += f.vy; f.life -= DT; }
   C.fx = C.fx.filter(f => f.life > 0);
-  if (pressed.esc) { openPart11(); return; }
+  if (pressed.esc) { if (C.lvl >= 10) openPart11b(); else openPart11(); return; }
   if (C.phase === 'intro') { if (C.t > 1.7) { C.phase = 'play'; C.t = 0; } return; }
   if (C.phase === 'dead') { if (C.t > 0.8 && pressed.enter) playCH(C.lvl); return; }
-  if (C.phase === 'result') { if (C.t > 0.8 && pressed.enter) { if (C.lvl + 1 < CH_NAMES.length) playCH(C.lvl + 1); else openPart11(); } return; }
+  if (C.phase === 'result') { if (C.t > 0.8 && pressed.enter) chNext(); return; }
   if (C.phase === 'ko') { C.p.vx = 0; if (C.t > 2.4) chFinish(); return; }
   if (C.stop > 0) { C.stop -= DT; return; }                         // ganz kurzes Anhalten beim Parry
   C.frame++; C.time += DT;
@@ -7628,7 +7841,7 @@ function chDrawPumpkin(x, y, face, pose, anim, alpha) {                // x = Mi
 }
 function chBg(C) {
   const kind = C.run ? C.run.bg : C.b.kind, cx = C.camX;
-  const sky = { wald: ['#f6ead0', '#e8d8a8'], markt: ['#f8e4c8', '#f0c890'], theo: ['#efe2c8', '#d8c8a8'], klara: ['#f0e8d8', '#e0d0b8'], baron: ['#5a1a1a', '#2a0a0a'], gemuese: ['#f8d8a0', '#e8a860'], haus: ['#e8f4e0', '#c8e0b8'], flora: ['#d8ecf4', '#f4ecc8'], bonbon: ['#ffe0f0', '#f8c0d8'] }[kind];
+  const sky = { wald: ['#f6ead0', '#e8d8a8'], markt: ['#f8e4c8', '#f0c890'], theo: ['#efe2c8', '#d8c8a8'], klara: ['#f0e8d8', '#e0d0b8'], baron: ['#5a1a1a', '#2a0a0a'], gemuese: ['#f8d8a0', '#e8a860'], haus: ['#e8f4e0', '#c8e0b8'], flora: ['#d8ecf4', '#f4ecc8'], bonbon: ['#ffe0f0', '#f8c0d8'], keller: ['#c8b090', '#8a7050'], wolken: ['#bfe0f8', '#f0f4ff'], werner: ['#e8d0b0', '#c8a888'], grimm: ['#ffd0a0', '#bfe0f8'], carla: ['#bfe8f8', '#e8f4f8'] }[kind];
   const gr = ctx.createLinearGradient(0, 0, 0, VH); gr.addColorStop(0, sky[0]); gr.addColorStop(1, sky[1]); ctx.fillStyle = gr; ctx.fillRect(0, 0, VW, VH);
   if (kind === 'wald' || kind === 'markt') {
     for (let i = 0; i < 6; i++) chOval(((i * 160 - cx * 0.15) % 960 + 960) % 960 - 120, 175, 110, 46, kind === 'wald' ? '#c8c890' : '#d8b088', 1.2);   // ferne Hügel
@@ -7666,6 +7879,22 @@ function chBg(C) {
   } else if (kind === 'bonbon') {                                     // Bonbon-Land: Gummi-Hügel und Zuckerstangen
     for (let i = 0; i < 6; i++) chOval(((i * 160 - cx * 0.15) % 960 + 960) % 960 - 120, 178, 100, 44, ['#ffb8d8', '#b8e8d8', '#f8e0a0'][i % 3], 1.2);
     for (let i = 0; i < 10; i++) { const x = ((i * 120 - cx * 0.45) % 1200 + 1200) % 1200 - 60; ctx.beginPath(); ctx.arc(x + 8, 122, 8, Math.PI, 0); ctx.lineWidth = 5; ctx.strokeStyle = '#e83a5a'; ctx.stroke(); chBox(x - 3, 120, 6, 76, '#ffffff', 1.2, 2); for (let k = 0; k < 5; k++) rect(x - 3, 124 + k * 15, 6, 5, '#e83a5a'); }
+  } else if (kind === 'keller') {                                     // Keller: Backsteine, Rohre, Fässer
+    for (let y = 0; y < 196; y += 12) for (let x = -((cx * 0.4) % 24) - 24 + (y / 12 % 2) * 12; x < VW; x += 24) chBox(x, y, 23, 11, '#9a6a4a', 0.6, 0);
+    for (let i = 0; i < 6; i++) { const x = ((i * 220 - cx * 0.5) % 1320 + 1320) % 1320 - 60; chBox(x, 0, 10, 120, '#7a8a8a', 1.4, 2); chBox(x - 4, 116, 18, 8, '#7a8a8a', 1.4, 2); chBox(x + 60, 158, 26, 38, '#8a5a32', 1.4, 6); rect(x + 60, 168, 26, 2, CH_INK); rect(x + 60, 184, 26, 2, CH_INK); }
+    for (let i = 0; i < 4; i++) { const x = ((i * 330 - cx * 0.5) % 1320 + 1320) % 1320 - 40; rect(x, 0, 1, 30, CH_INK); ctx.globalAlpha = 0.2; chOval(x, 40, 30, 24, '#ffe8a0', 0); ctx.globalAlpha = 1; chOval(x, 34, 6, 7, '#ffe8a0', 1.2); }
+  } else if (kind === 'wolken' || kind === 'grimm') {                 // hoch über den Wolken
+    chOval(320, 40, 20, 20, '#fff3b0', 1.4);
+    for (let i = 0; i < 8; i++) { const x = ((i * 150 - cx * 0.2) % 1200 + 1200) % 1200 - 80; chOval(x, 60 + (i * 37) % 80, 40, 16, '#ffffff', 1.2); chOval(x + 20, 52 + (i * 37) % 80, 24, 14, '#ffffff', 1.2); }
+  } else if (kind === 'werner') {                                     // im Haus: Tapete, Mauseloch, Tischbeine
+    for (let x = 0; x < VW; x += 24) rect(x, 0, 12, 150, '#f0dcc0');
+    chBox(0, 140, VW, 12, '#8a5a32', 1.4, 0);
+    ctx.beginPath(); ctx.moveTo(150, 152); ctx.lineTo(150, 128); ctx.arc(165, 128, 15, Math.PI, 0); ctx.lineTo(180, 152); ctx.closePath(); ctx.fillStyle = '#2a1a10'; ctx.fill(); ctx.lineWidth = 1.4; ctx.strokeStyle = CH_INK; ctx.stroke();
+    chBox(40, 40, 10, 112, '#8a5a32', 1.4, 2); chBox(250, 40, 10, 112, '#8a5a32', 1.4, 2); chBox(20, 30, 260, 12, '#a87040', 1.6, 2);
+  } else if (kind === 'carla') {                                      // weites Meer mit Felsen
+    chOval(60, 150, 30, 22, '#8a8070', 1.4); chOval(200, 160, 22, 14, '#8a8070', 1.4);
+    chBox(0, 172, VW, 60, '#3a88c8', 1.6, 0);
+    for (let i = 0; i < 14; i++) { const x = ((i * 32 - G.t * 30) % 448 + 448) % 448 - 32; chLine([x, 180 + (i % 3) * 12, x + 8, 175 + (i % 3) * 12, x + 16, 180 + (i % 3) * 12], 1.4, '#ffffff'); }
   } else if (kind === 'baron') {                                      // Kasino: rote Vorhänge, goldene Lampen
     for (let i = 0; i < 12; i++) { const x = i * 34; ctx.fillStyle = i % 2 ? '#7a1a1a' : '#8a2222'; ctx.fillRect(x, 0, 34, 150); rect(x + 16, 0, 2, 150, '#5a0e0e'); }
     for (let i = 0; i < 4; i++) { const x = 48 + i * 96; rect(x, 0, 1, 26, '#c8a040'); chOval(x, 30, 9, 6, '#ffd23f', 1.2); ctx.globalAlpha = 0.18; chOval(x, 34, 26, 18, '#ffe8a0', 0); ctx.globalAlpha = 1; }
@@ -7676,17 +7905,27 @@ function chDrawGround(C) {
   const kind = C.run ? C.run.bg : 'arena', cx = C.camX;
   for (const [a, b] of C.ground) {
     const x1 = Math.max(a, cx - 10) - cx, x2 = Math.min(b, cx + VW + 10) - cx; if (x2 <= x1) continue;
-    chBox(x1, CH_GROUND, x2 - x1, VH - CH_GROUND + 4, { markt: '#c89a6a', haus: '#b86a4a', bonbon: '#f4c8dc' }[kind] || (C.b && { baron: '#2a6a3a', klara: '#9a7a5a', gemuese: '#6a4228', flora: '#7a6a3a', bonbon: '#f0b8d0' }[C.b.kind]) || '#a8784a', 1.6, 0);
+    chBox(x1, CH_GROUND, x2 - x1, VH - CH_GROUND + 4, { markt: '#c89a6a', haus: '#b86a4a', bonbon: '#f4c8dc', keller: '#6a5a4a', wolken: '#ffffff' }[kind] || (C.b && { baron: '#2a6a3a', klara: '#9a7a5a', gemuese: '#6a4228', flora: '#7a6a3a', bonbon: '#f0b8d0', werner: '#8a5a3a', grimm: '#ffffff' }[C.b.kind]) || '#a8784a', 1.6, 0);
     for (let x = Math.ceil((x1 + cx) / 14) * 14; x < x2 + cx; x += 14) rect(x - cx, CH_GROUND + 6 + ((x / 14) % 3) * 5, 6, 1, 'rgba(0,0,0,.18)');
     if (kind === 'wald' || (C.b && C.b.kind === 'flora')) for (let x = Math.ceil((x1 + cx) / 9) * 9; x < x2 + cx - 4; x += 9) chLine([x - cx, CH_GROUND + 1, x - cx + 2, CH_GROUND - 3, x - cx + 4, CH_GROUND + 1], 1, '#3a5a2a');
   }
-  for (const pl of C.plats) { if (pl.x + pl.w < cx || pl.x > cx + VW) continue; chBox(pl.x - cx, pl.y, pl.w, 7, kind === 'markt' ? '#c83a3a' : kind === 'bonbon' ? '#ff9ac8' : kind === 'haus' || (C.b && C.b.kind === 'flora') ? '#5aa83a' : '#9a6a3a', 1.4, 2); rect(pl.x - cx + 3, pl.y + 2, pl.w - 6, 1, 'rgba(255,255,255,.35)'); }
+  for (const pl of C.plats) { if (pl.x + pl.w < cx || pl.x > cx + VW) continue; chBox(pl.x - cx, pl.y, pl.w, 7, kind === 'markt' ? '#c83a3a' : kind === 'bonbon' ? '#ff9ac8' : kind === 'wolken' || (C.b && C.b.kind === 'grimm') ? '#ffffff' : kind === 'haus' || (C.b && C.b.kind === 'flora') ? '#5aa83a' : '#9a6a3a', 1.4, 2); rect(pl.x - cx + 3, pl.y + 2, pl.w - 6, 1, 'rgba(255,255,255,.35)'); }
 }
 function chDrawShot(s, cx) {
   const x = s.x - cx, y = s.y;
   if (s.pink && s.r) { chOval(x, y, s.r + 0.5, s.r + 0.5, '#ff6ab0', 1.4); chOval(x - s.r * 0.3, y - s.r * 0.3, s.r * 0.3, s.r * 0.3, '#ffd0e8', 0); return; }
   switch (s.kind) {
     case 'ink': case 'drop': chOval(x, y, s.r, s.r, '#2a2440', 1.4); chOval(x - 1.5, y - 1.5, 1.4, 1.4, '#8a80b0', 0); break;
+    case 'cherry': chOval(x, y, s.r, s.r, '#d62828', 1.4); chLine([x, y - s.r, x + 2, y - s.r - 4, x + 4, y - s.r - 5], 1.2, '#3a5a2a'); break;
+    case 'spark': chOval(x, y, s.r, s.r, '#ffd23f', 1); break;
+    case 'screw': { ctx.save(); ctx.translate(x, y); ctx.rotate(s.x * 0.2); chBox(-4, -4, 8, 8, '#9a9aa8', 1.2, 1); rect(-3, -0.5, 6, 1, CH_INK); ctx.restore(); break; }
+    case 'fireball': chOval(x, y, s.r, s.r, '#ff8a1c', 1.4); chOval(x + 1.5, y + 1, s.r * 0.5, s.r * 0.5, '#ffe14a', 0); break;
+    case 'ring': ctx.beginPath(); ctx.arc(x, y, s.r, 0, Math.PI * 2); ctx.lineWidth = 3; ctx.strokeStyle = CH_INK; ctx.stroke(); ctx.lineWidth = 1.8; ctx.strokeStyle = '#ff8a1c'; ctx.stroke(); break;
+    case 'firewave': { ctx.beginPath(); ctx.moveTo(x, y + s.h); for (let k = 0; k <= 8; k++) ctx.lineTo(x + k * s.w / 8, y + 3 + Math.sin(k * 1.6 + G.t * 6) * 4); ctx.lineTo(x + s.w, y + s.h); ctx.closePath(); ctx.fillStyle = '#ff8a1c'; ctx.fill(); ctx.lineWidth = 1.4; ctx.strokeStyle = CH_INK; ctx.stroke(); rect(x + 4, y + 8, s.w - 8, 2, '#ffe14a'); break; }
+    case 'fish': chOval(x, y, 7, 4.5, '#f08a1c', 1.2); ctx.beginPath(); ctx.moveTo(x + 6, y); ctx.lineTo(x + 11, y - 4); ctx.lineTo(x + 11, y + 4); ctx.closePath(); ctx.fillStyle = '#f08a1c'; ctx.fill(); ctx.strokeStyle = CH_INK; ctx.lineWidth = 1.2; ctx.stroke(); chOval(x - 3, y - 1, 1, 1, CH_INK, 0); break;
+    case 'bubble': ctx.beginPath(); ctx.arc(x, y, s.r, 0, Math.PI * 2); ctx.fillStyle = 'rgba(200,240,255,.5)'; ctx.fill(); ctx.lineWidth = 1.2; ctx.strokeStyle = CH_INK; ctx.stroke(); chOval(x - 2, y - 2, 1.5, 1.5, '#ffffff', 0); break;
+    case 'puffer': { for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; chLine([x + Math.cos(a) * s.r, y + Math.sin(a) * s.r, x + Math.cos(a) * (s.r + 2), y + Math.sin(a) * (s.r + 2), x + Math.cos(a) * (s.r + 4), y + Math.sin(a) * (s.r + 4)], 1.2); } chOval(x, y, s.r, s.r, '#f4d040', 1.4); chEyes(x - 2, y - 1, 0.45, -0.6); break; }
+    case 'rock': chBox(x, y, s.w, s.h, '#8a8070', 1.4, 3); rect(x + 3, y + 4, 5, 2, '#a8a090'); break;
     case 'clod': chOval(x, y, s.r, s.r - 1, '#7a5030', 1.4); chOval(x - 2, y - 2, 2, 1.5, '#a87850', 0); break;
     case 'tear': ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.quadraticCurveTo(x + 4, y, x, y + 4); ctx.quadraticCurveTo(x - 4, y, x, y - 6); ctx.fillStyle = '#5ac8ff'; ctx.fill(); ctx.lineWidth = 1.2; ctx.strokeStyle = CH_INK; ctx.stroke(); break;
     case 'chili': { ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(s.vy, s.vx)); chOval(0, 0, 7, 3.5, '#d62828', 1.2); chOval(-7, 0, 2, 2, '#3f7d20', 1); ctx.restore(); break; }
@@ -7802,6 +8041,7 @@ function chDrawBoss(b) {
     }
   }
   chDrawBoss2(b);
+  chDrawBoss3(b);
   ctx.restore();
 }
 function chBanner(s, col, k) {                                        // großer Schriftzug, wächst sanft auf
@@ -7823,8 +8063,15 @@ function drawCH() {
   for (const c of C.coinsL) if (!c.taken) { const w = Math.abs(Math.cos(G.t * 2.2 + c.x)) * 5 + 1; chOval(c.x - cx, c.y, w, 6, '#ffd23f', 1.2); if (w > 3) rect(c.x - cx - 0.5, c.y - 3, 1, 6, '#c8961a'); }
   for (const h of C.hz) {
     const x = h.x - cx;
+    if (h.kind === 'zap') {
+      if (h.warn > 0) { ctx.globalAlpha = 0.5; for (let xx = 0; xx < 300; xx += 12) rect(xx, h.y - 1, 7, 2, '#f4e04a'); ctx.globalAlpha = 1; }
+      else { ctx.beginPath(); ctx.moveTo(0, h.y); for (let xx = 0; xx <= 300; xx += 10) ctx.lineTo(xx, h.y + ((xx / 10) % 2 ? -5 : 5)); ctx.lineWidth = 4; ctx.strokeStyle = '#f4e04a'; ctx.stroke(); ctx.lineWidth = 1.4; ctx.strokeStyle = CH_INK; ctx.stroke(); }
+      continue;
+    }
     if (h.warn > 0) { ctx.globalAlpha = 0.35 + 0.25 * (1 - Math.min(1, h.warn)); chOval(x, CH_GROUND + 2, h.w * 0.7, 3, h.kind === 'steam' ? '#ffffff' : '#2a2440', 0); ctx.globalAlpha = 1;
       if (h.kind === 'steam') for (let k = 0; k < 2; k++) chOval(x + (k ? 4 : -4), CH_GROUND - 4 - ((G.t * 20 + k * 6) % 12), 2.5, 2.5, '#ffffff', 0); }
+    else if (h.kind === 'paw') { const k = Math.min(1, (0.35 - h.act) * 10 + 0.3), py = -30 + (CH_GROUND - 6) * k; chBox(x - 16, -10, 32, py + 10, '#5a4a6a', 1.6, 6); chOval(x, py, 24, 12, '#5a4a6a', 1.8); for (const k2 of [-12, 0, 12]) chOval(x + k2, py + 8, 6, 5, '#f4b0c8', 1.2); }
+    else if (h.kind === 'fire') { const k = Math.min(1, (0.8 - h.act) * 8 + 0.3), top = CH_GROUND - (CH_GROUND - 30) * k; for (let yy = CH_GROUND; yy > top; yy -= 12) chOval(x + Math.sin(yy * 0.3 + G.t * 5) * 2, yy - 4, 9, 8, yy % 24 ? '#ff8a1c' : '#ffd23f', 1.2); }
     else if (h.kind === 'thorn') { for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(x + k * 5 - 3, CH_GROUND); ctx.lineTo(x + k * 5, CH_GROUND - 9); ctx.lineTo(x + k * 5 + 3, CH_GROUND); ctx.closePath(); ctx.fillStyle = '#3a6a2a'; ctx.fill(); ctx.strokeStyle = CH_INK; ctx.lineWidth = 1; ctx.stroke(); } }
     else if (h.kind === 'vine') { const k = Math.min(1, (0.9 - h.act) * 8 + 0.2), top = CH_GROUND - 96 * k; chBox(x - 6, top, 12, CH_GROUND - top, '#3a7a2a', 1.6, 4); for (let yy = CH_GROUND - 10; yy > top + 4; yy -= 14) { chLine([x - 6, yy, x - 9, yy - 2, x - 11, yy - 5], 1.4); chLine([x + 6, yy - 7, x + 9, yy - 9, x + 11, yy - 12], 1.4); } }
     else if (h.kind === 'steam') { ctx.globalAlpha = 0.85; for (let yy = CH_GROUND; yy > 30; yy -= 12) chOval(x + Math.sin(yy * 0.2 + G.t * 4) * 3, yy, 11, 8, '#f8f8f8', 0); ctx.globalAlpha = 1; }
@@ -7834,7 +8081,7 @@ function drawCH() {
   for (const s of C.eb) chDrawShot(s, cx);
   // Spieler
   const pose = p.superT > 0 ? 'stand' : p.dashT > 0 ? 'dash' : p.duck ? 'duck' : !p.onGround ? 'air' : Math.abs(p.vx) > 0.1 ? 'run' : 'stand';
-  if (C.phase !== 'dead') chDrawPumpkin(p.x + p.w / 2 - cx, p.y + p.h, p.face, pose, p.anim, p.inv > 0 ? 0.55 : 1);
+  if (C.phase !== 'dead') { if (C.plane) chDrawPlane(p.x - cx, p.y, p.inv > 0 ? 0.55 : 1); else chDrawPumpkin(p.x + p.w / 2 - cx, p.y + p.h, p.face, pose, p.anim, p.inv > 0 ? 0.55 : 1); }
   if (p.parryWin > 0) { ctx.globalAlpha = 0.6; chOval(p.x + p.w / 2 - cx, p.y + 6, 9, 9, 'rgba(255,106,176,.25)', 0); ctx.globalAlpha = 1; }
   if (p.superT > 0) {                                                // Super-Kürbisstrahl
     const bx = p.face > 0 ? p.x + p.w - cx : p.x - cx - 320, w = 320, k = Math.min(1, (1.3 - p.superT) * 6);
@@ -7885,7 +8132,7 @@ function drawCH() {
     chOval(270, 140, 22, 16, R.grade.startsWith('A') ? '#ffd23f' : '#e8d8b8', 2); text(R.grade, 270, 132, 16, '#c8202a', 'center', null);
     text(`+${R.coins} MÜNZEN`, 86, 150, 8, '#8a6a1a', 'left', null);
     if (R.best) text('NEUE BESTNOTE!', 86, 162, 8, '#c8202a', 'left', null);
-    text(C.lvl + 1 < CH_NAMES.length ? 'ENTER = NÄCHSTES LEVEL · ESC = ZURÜCK' : 'ENTER = ZURÜCK · DU HAST TEIL 11 GESCHAFFT!', VW / 2, 184, 8, CH_INK, 'center', null);
+    text(C.lvl === 9 ? 'ENTER = KARTE · DANN RECHTS WEITERGEHEN!' : C.lvl + 1 < CH_NAMES.length ? 'ENTER = NÄCHSTES LEVEL · ESC = ZURÜCK' : 'ENTER = ZURÜCK · INSEL 2 GESCHAFFT!', VW / 2, 184, 8, CH_INK, 'center', null);
   }
 }
 function drawPart11() {
@@ -7912,6 +8159,7 @@ function drawPart11() {
   text('SHIFT = DASH · S = DUCKEN · IN DER LUFT AUF PINKES = PARRY', VW / 2, 132, 8, '#c83a8a', 'center', null);
   text('Q = EX (1 KARTE) · R = SUPER (5) · 1/2 = WAFFE', VW / 2, 142, 8, CH_INK, 'center', null);
   drawPortal(PORTAL_BTN, '10', 'TEIL 10');
+  if (chIsland2()) { text('WEITERGEHEN →', VW - 8, 160, 8, '#c8202a', 'right', CH_INK); text('ZUR INSEL 2', VW - 8, 170, 8, CH_INK, 'right', null); }
   text('PORTAL = TEIL 10 · A/D = LAUFEN · H = TEIL 1', VW / 2, 212, 8, '#fff7e0', 'center', CH_INK);
 }
 function drawCHDoor() {                                               // Filmrolle „11“ auf der Teil-10-Seite
@@ -7920,10 +8168,16 @@ function drawCHDoor() {                                               // Filmrol
   chOval(cx, cy, 5, 5, '#f08a1c', 1.2); text('11', cx, cy - 4, 8, CH_INK, 'center', null);
   text('TEIL 11', cx, b.y + b.h + 2, 8, '#ffd23f', 'center', '#000');
 }
+function chNext() {                                                   // nach der Bewertung: nächstes Level oder zurück zur Karte
+  const C = G.ch;
+  if (C.lvl === 9) { openPart11(); G.p11.x = VW - 100; }
+  else if (C.lvl + 1 < CH_NAMES.length) playCH(C.lvl + 1);
+  else openPart11b();
+}
 function chClick() {
   const C = G.ch; if (!C || C.t < 0.6) return;
   if (C.phase === 'dead') playCH(C.lvl);
-  else if (C.phase === 'result') { if (C.lvl + 1 < CH_NAMES.length) playCH(C.lvl + 1); else openPart11(); }
+  else if (C.phase === 'result') chNext();
 }
 // ============================================================ Bonus-Spiel „Unter Kürbissen“ (inspiriert von Among Us)
 // Du bist ein Kürbis in der Crew eines Raumschiffs. Einer ist heimlich der Mörder und kriecht durch die Schächte – oder du bist es selbst.
