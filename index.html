@@ -7030,8 +7030,8 @@ function drawPart10() {
 // sammelst Super-Karten für EX-Schuss (Q) und Super (R), weichst mit Dash (Shift) aus und hast nur 3 Leben.
 const CH_NAMES = ['TINTENWALD', 'TINTENFASS-THEO', 'JAHRMARKT', 'KAFFEEKANNE KLARA', 'DER WÜRFEL-BARON', 'DIE GEMÜSE-BANDE', 'GEWÄCHSHAUS', 'FLORIFLORA', 'BONBON-FABRIK', 'BARONESS BONBON', 'KELLERGASSEN', 'WERNER DIE MAUS', 'WOLKENPFAD', 'GRIMM FEUERHOLZ', 'CARLA MARIA', 'FROSCH-BRÜDER', 'KASINO-STRASSE', 'HÖLLENPFAD', 'KÖNIG WÜRFEL', 'DER TEUFEL'];
 const CH_BOSS = [null, 'theo', null, 'klara', 'baron', 'gemuese', null, 'flora', null, 'bonbon', null, 'werner', null, 'grimm', 'carla', 'frogs', null, null, 'king', 'devil'];
-const CH_HP = { theo: 260, klara: 400, baron: 460, gemuese: 420, flora: 460, bonbon: 480, werner: 460, grimm: 500, carla: 480, frogs: 500, king: 620, devil: 600 };   // König Würfel: 5 Minibosse à 80 + er selbst 220
-const CH_MARKS = { theo: [0.4, 0.75], klara: [0.35, 0.7], baron: [0.5], gemuese: [0.333, 0.667], flora: [0.55], bonbon: [0.34, 0.7], werner: [0.35, 0.7], grimm: [0.45, 0.8], carla: [0.4, 0.75], frogs: [0.34, 0.67], king: [0.129, 0.258, 0.387, 0.516, 0.645], devil: [0.4, 0.7] };          // Phasen-Striche auf dem Fortschrittsbalken
+const CH_HP = { theo: 260, klara: 400, baron: 460, gemuese: 420, flora: 460, bonbon: 480, werner: 460, grimm: 500, carla: 480, frogs: 500, king: 460, devil: 600 };   // König Würfel: 3 Minibosse à 80 + er selbst 220
+const CH_MARKS = { theo: [0.4, 0.75], klara: [0.35, 0.7], baron: [0.5], gemuese: [0.333, 0.667], flora: [0.55], bonbon: [0.34, 0.7], werner: [0.35, 0.7], grimm: [0.45, 0.8], carla: [0.4, 0.75], frogs: [0.34, 0.67], king: [0.174, 0.348, 0.522], devil: [0.4, 0.7] };          // Phasen-Striche auf dem Fortschrittsbalken
 const CH_PAR = [45, 90, 55, 120, 150, 120, 55, 140, 60, 160, 60, 130, 60, 150, 140, 150, 60, 60, 150, 180];                                            // Zeit für die volle Punktzahl
 const CH_GROUND = 196, CH_G = 0.36, CH_JUMP = 6.4;
 const CH_INK = '#1a1410', CH_CREAM = '#f3e6c4';
@@ -7967,7 +7967,7 @@ const KD_MINIS = [
   { name: 'DOMINO-DUO', w: 34, h: 40, icon: '#ffd23f' },             // zwei Dominosteine
   { name: 'ACHTER-KUGEL', w: 30, h: 30, icon: '#1a1a1a' },           // Billardkugel
 ];
-const KD_MINI_HP = 80, KD_KING_HP = 220;
+const KD_MINI_HP = 80, KD_KING_HP = 220, KD_NEED = 3;   // 3 der 5 Minibosse (zufällig gewürfelt), dann König Würfel
 function kdMarch(fire, sp) {                                          // Kartensoldaten: zu hoch zum Drüberspringen – auf jeder kann man parieren
   for (let k = 0; k < 7; k++) fire({ x: -110 + k * 14, y: CH_GROUND - 40, w: 12, h: 40, vx: sp, kind: 'soldier', pink: true, wave: true, life: 9 });
   chMsg('KARTENSOLDATEN! SPRING UND PARIER EINE KARTE!', 1.8);
@@ -8017,9 +8017,9 @@ function kdMiniDown() {                                               // Minibos
   const C = G.ch, b = C.b, m = C.mini;
   chPuff(m.x + m.w / 2, m.y + m.h / 2, '#fff7e0', 18, 2.6); SFX.kill(); C.shake = 4;
   b.done.push(m.i); C.mini = null; C.eb = C.eb.filter(s => !s.mini); C.hz = [];
-  b.hp = (5 - b.done.length) * KD_MINI_HP + KD_KING_HP;
-  if (b.done.length >= 5) { b.stage = 'final'; b.state = 'idle'; b.t = 1.5; b.seq = 0; chMsg('ALLE 5 BESIEGT! JETZT KÖNIG WÜRFEL SELBST!', 2.2); SFX.boss(); }
-  else { b.stage = 'march'; b.n = 0; b.t = 1.4; chMsg(`${KD_MINIS[m.i].name} BESIEGT! NOCH ${5 - b.done.length}!`, 1.8); }
+  b.hp = (KD_NEED - b.done.length) * KD_MINI_HP + KD_KING_HP;
+  if (b.done.length >= KD_NEED) { b.stage = 'final'; b.state = 'idle'; b.t = 1.5; b.seq = 0; chMsg('3 BESIEGT! JETZT KÖNIG WÜRFEL SELBST!', 2.2); SFX.boss(); }
+  else { b.stage = 'march'; b.n = 0; b.t = 1.4; chMsg(`${KD_MINIS[m.i].name} BESIEGT! NOCH ${KD_NEED - b.done.length}!`, 1.8); }
 }
 function kdDrawMini(m) {
   const x = m.x, y = m.y, cx = x + m.w / 2, t = m.anim;
