@@ -7030,8 +7030,8 @@ function drawPart10() {
 // sammelst Super-Karten für EX-Schuss (Q) und Super (R), weichst mit Dash (Shift) aus und hast nur 3 Leben.
 const CH_NAMES = ['TINTENWALD', 'TINTENFASS-THEO', 'JAHRMARKT', 'KAFFEEKANNE KLARA', 'DER WÜRFEL-BARON', 'DIE GEMÜSE-BANDE', 'GEWÄCHSHAUS', 'FLORIFLORA', 'BONBON-FABRIK', 'BARONESS BONBON', 'KELLERGASSEN', 'WERNER DIE MAUS', 'WOLKENPFAD', 'GRIMM FEUERHOLZ', 'CARLA MARIA', 'FROSCH-BRÜDER', 'KASINO-STRASSE', 'HÖLLENPFAD', 'KÖNIG WÜRFEL', 'DER TEUFEL'];
 const CH_BOSS = [null, 'theo', null, 'klara', 'baron', 'gemuese', null, 'flora', null, 'bonbon', null, 'werner', null, 'grimm', 'carla', 'frogs', null, null, 'king', 'devil'];
-const CH_HP = { theo: 260, klara: 400, baron: 460, gemuese: 420, flora: 460, bonbon: 480, werner: 460, grimm: 500, carla: 480, frogs: 500, king: 520, devil: 600 };
-const CH_MARKS = { theo: [0.4, 0.75], klara: [0.35, 0.7], baron: [0.5], gemuese: [0.333, 0.667], flora: [0.55], bonbon: [0.34, 0.7], werner: [0.35, 0.7], grimm: [0.45, 0.8], carla: [0.4, 0.75], frogs: [0.34, 0.67], king: [0.35, 0.7], devil: [0.4, 0.7] };          // Phasen-Striche auf dem Fortschrittsbalken
+const CH_HP = { theo: 260, klara: 400, baron: 460, gemuese: 420, flora: 460, bonbon: 480, werner: 460, grimm: 500, carla: 480, frogs: 500, king: 620, devil: 600 };   // König Würfel: 5 Minibosse à 80 + er selbst 220
+const CH_MARKS = { theo: [0.4, 0.75], klara: [0.35, 0.7], baron: [0.5], gemuese: [0.333, 0.667], flora: [0.55], bonbon: [0.34, 0.7], werner: [0.35, 0.7], grimm: [0.45, 0.8], carla: [0.4, 0.75], frogs: [0.34, 0.67], king: [0.129, 0.258, 0.387, 0.516, 0.645], devil: [0.4, 0.7] };          // Phasen-Striche auf dem Fortschrittsbalken
 const CH_PAR = [45, 90, 55, 120, 150, 120, 55, 140, 60, 160, 60, 130, 60, 150, 140, 150, 60, 60, 150, 180];                                            // Zeit für die volle Punktzahl
 const CH_GROUND = 196, CH_G = 0.36, CH_JUMP = 6.4;
 const CH_INK = '#1a1410', CH_CREAM = '#f3e6c4';
@@ -7223,7 +7223,7 @@ function chPlayer() {
     const pb = chPBox(), box = { x: pb.x - 7, y: pb.y - 7, w: pb.w + 14, h: pb.h + 14 };
     const shot = C.eb.find(s => s.pink && !s.dead && chOver(box, s)), star = !shot && C.pinks.find(s => s.gone <= 0 && chOver(box, s));
     if (shot || star) {
-      if (shot) shot.dead = true; else star.gone = 2.2;
+      if (shot) { if (shot.kind !== 'soldier') shot.dead = true; } else star.gone = 2.2;   // Kartensoldaten bleiben stehen, man prallt nur ab
       const o = shot || star;
       p.vy = -CH_JUMP; p.bounced = true; p.airDash = true; p.parryWin = 0; C.parries++; C.stop = 0.07;
       chAddCards(1); chPuff(o.x, o.y, '#ff6ab0', 10, 2.2);
@@ -7257,9 +7257,15 @@ function chHitEnemy(e, dmg) {
   if (e.hp <= 0 && !e.dead) { e.dead = true; chPuff(e.x + e.w / 2, e.y + e.h / 2, '#e8dcc0', 10, 1.8); tone(500, 900, 0.07, 'square', 0.04); }
 }
 // beim Teufel zählt nur er selbst, nicht der breite Thron
-const chBossBox = () => { const b = G.ch.b; if (b.kind === 'bonbon' && b.hx != null) return { x: b.hx, y: b.hy, w: 24, h: 24 }; if (b.kind === 'devil') return { x: b.x + 26, y: b.y + 14, w: 40, h: b.h - 14 }; return b.state === 'roll' && b.kind === 'baron' ? { x: b.x + 6, y: CH_GROUND - 30, w: 30, h: 30 } : { x: b.x + 4, y: b.y + 4, w: b.w - 8, h: b.h - 6 }; };
+const chBossBox = () => { const b = G.ch.b; if (b.kind === 'bonbon' && b.hx != null) return { x: b.hx, y: b.hy, w: 24, h: 24 }; if (b.kind === 'devil') return { x: b.x + 26, y: b.y + 14, w: 40, h: b.h - 14 }; if (b.kind === 'king' && b.stage !== 'final') { const m = G.ch.mini; return m && m.vis > 0.5 ? { x: m.x + 2, y: m.y + 2, w: m.w - 4, h: m.h - 2 } : { x: -999, y: -999, w: 1, h: 1 }; } return b.state === 'roll' && b.kind === 'baron' ? { x: b.x + 6, y: CH_GROUND - 30, w: 30, h: 30 } : { x: b.x + 4, y: b.y + 4, w: b.w - 8, h: b.h - 6 }; };
 function chHitBoss(dmg, noCards) {
   const C = G.ch, b = C.b; if (!b || b.hp <= 0 || C.phase !== 'play') return;
+  if (b.kind === 'king' && b.stage !== 'final') {                   // bei König Würfel trifft man erst die Minibosse
+    const m = C.mini; if (!m) return;
+    m.hp -= dmg; b.hp = Math.max(1, b.hp - dmg); if (!noCards) chAddCards(dmg * 0.02);
+    if (m.hp <= 0) kdMiniDown();
+    return;
+  }
   b.hp -= dmg; b.hurtT = 0.06;
   if (!noCards) chAddCards(dmg * 0.02);
   if (b.hp <= 0) { b.hp = 0; C.phase = 'ko'; C.t = 0; C.eb = []; C.hz = []; SFX.clear(); C.shake = 6; for (let i = 0; i < 4; i++) chPuff(b.x + rnd(0, b.w), b.y + rnd(0, b.h), '#fff7e0', 10, 2.5); }
@@ -7343,7 +7349,7 @@ function chBoss() {
   const C = G.ch, b = C.b, p = C.p; if (!b) return;
   b.anim += DT; if (b.hurtT > 0) b.hurtT -= DT;
   const dx = p.x + p.w / 2 - (b.x + b.w / 2), frac = b.hp / b.max;
-  const ph = b.kind === 'baron' ? (frac > 0.5 ? 1 : 2) : b.kind === 'flora' ? (frac > 0.45 ? 1 : 2) : b.kind === 'gemuese' ? (frac > 0.667 ? 1 : frac > 0.333 ? 2 : 3) : b.kind === 'bonbon' ? (frac > 0.66 ? 1 : frac > 0.3 ? 2 : 3) : b.kind === 'werner' ? (frac > 0.65 ? 1 : frac > 0.3 ? 2 : 3) : b.kind === 'grimm' ? (frac > 0.55 ? 1 : frac > 0.2 ? 2 : 3) : b.kind === 'carla' ? (frac > 0.6 ? 1 : frac > 0.25 ? 2 : 3) : b.kind === 'frogs' ? (frac > 0.66 ? 1 : frac > 0.33 ? 2 : 3) : b.kind === 'king' ? (frac > 0.65 ? 1 : frac > 0.3 ? 2 : 3) : b.kind === 'devil' ? (frac > 0.6 ? 1 : frac > 0.3 ? 2 : 3) : frac > (b.kind === 'theo' ? 0.6 : 0.65) ? 1 : frac > (b.kind === 'theo' ? 0.25 : 0.3) ? 2 : 3;
+  const ph = b.kind === 'baron' ? (frac > 0.5 ? 1 : 2) : b.kind === 'flora' ? (frac > 0.45 ? 1 : 2) : b.kind === 'gemuese' ? (frac > 0.667 ? 1 : frac > 0.333 ? 2 : 3) : b.kind === 'bonbon' ? (frac > 0.66 ? 1 : frac > 0.3 ? 2 : 3) : b.kind === 'werner' ? (frac > 0.65 ? 1 : frac > 0.3 ? 2 : 3) : b.kind === 'grimm' ? (frac > 0.55 ? 1 : frac > 0.2 ? 2 : 3) : b.kind === 'carla' ? (frac > 0.6 ? 1 : frac > 0.25 ? 2 : 3) : b.kind === 'frogs' ? (frac > 0.66 ? 1 : frac > 0.33 ? 2 : 3) : b.kind === 'king' ? 1 : b.kind === 'devil' ? (frac > 0.6 ? 1 : frac > 0.3 ? 2 : 3) : frac > (b.kind === 'theo' ? 0.6 : 0.65) ? 1 : frac > (b.kind === 'theo' ? 0.25 : 0.3) ? 2 : 3;
   if (ph !== b.ph) { b.ph = ph; b.seq = 0; chMsg({ theo: ['', '', 'THEO WIRD WÜTEND!', 'THEO KOCHT ÜBER!'], klara: ['', '', 'KLARA SPRUDELT VOR WUT!', 'JETZT WIRD ES HEISS!'], baron: ['', '', 'DER BARON SETZT ALLES!'], gemuese: ['', '', 'DIE ZWIEBEL (SOĞAN) WEINT!', 'DIE SCHARFE PAPRIKA (BIBER)!'], flora: ['', '', 'FLORIFLORA WIRD WILD!'], bonbon: ['', '', 'DIE BARONESS WIRD SAUER!', 'JETZT FLIEGT IHR KOPF!'], werner: ['', '', 'WERNER HOLT DEN FLAMMENWERFER!', 'DOSE KAPUTT – DIE KATZE KOMMT!'], grimm: ['', '', 'GRIMM SPUCKT FEUER!', 'GRIMM HAT DREI KÖPFE!'], carla: ['', '', 'CARLA MARIA WIRD WÜTEND!', 'FELSWÄNDE AUS DEM MEER!'], frogs: ['', '', 'DIE FRÖSCHE WERDEN WILD!', 'SIE WERDEN ZUM SPIELAUTOMATEN!'], king: ['', '', 'KÖNIG WÜRFEL WIRD ERNST!', 'ALLES ODER NICHTS!'], devil: ['', '', 'DER TEUFEL WIRD RIESIG!', 'DER TEUFEL WEINT VOR WUT!'] }[b.kind][ph], 1.8); SFX.boss(); }
   b.t -= DT;
   const dir = b.x + b.w / 2 > VW / 2 ? -1 : 1, mx = dir < 0 ? b.x - 4 : b.x + b.w + 4;   // Angriffe kommen von der Seite des Bosses
@@ -7809,23 +7815,40 @@ function chBoss4(b, ph, dx, fire) {
     } else if (b.state === 'coins') {                                // Münzen aus dem Automaten-Maul
       if (b.t <= 0) { const high = b.n % 2 === 0; fire({ x: b.x, y: high ? CH_GROUND - 26 : CH_GROUND - 8, r: 5, vx: -3, kind: 'coin', pink: b.n === 3 }); b.n++; b.t = 0.55; if (b.n >= 5) { b.state = 'idle'; b.t = 1; } }
     }
-  } else if (b.kind === 'king') {                                    // König Würfel
-    if (b.state === 'idle') {
-      b.face = dx < 0 ? -1 : 1;
-      if (b.t <= 0) { const plan = [null, ['march', 'chips', 'march', 'chips'], ['march', 'hand', 'chips', 'hand'], ['march', 'dice', 'hand', 'march']][ph]; b.state = plan[b.seq++ % plan.length]; b.t = 0.6; b.n = 0; }
-    } else if (b.state === 'march') {                                // Kartensoldaten marschieren – zu hoch zum Drüberspringen: das pinke Herz parieren!
-      if (b.t <= 0) {
-        const fromLeft = true, sp = ph === 1 ? 1.3 : 1.6;   // immer von links: so landet man nach dem Sprung nicht im König
-        for (let k = 0; k < 7; k++) fire({ x: fromLeft ? -110 + k * 14 : VW + 10 + k * 14, y: CH_GROUND - 40, w: 12, h: 40, vx: fromLeft ? sp : -sp, kind: 'soldier', pink: k === 3, wave: true, life: 9 });
-        chMsg('KARTENSOLDATEN! PARIER DAS PINKE HERZ!', 1.6); b.state = 'idle'; b.t = 5;
+  } else if (b.kind === 'king') {                                    // König Würfel: erst 5 Minibosse auf dem Spielbrett, dann er selbst
+    if (!b.stage) { b.stage = 'march'; b.done = []; b.pos = -1; b.t = 1; b.n = 0; }
+    b.face = dx < 0 ? -1 : 1;
+    if (b.stage === 'march') {                                       // Kartensoldaten und Chips, dann bietet er den Würfel an
+      if (b.n === 0 && b.t <= 0) { kdMarch(fire, 1.3 + b.done.length * 0.08); b.n = 1; b.t = 5.4; }
+      else if (b.n === 1 && b.t <= 0 && b.done.length % 2 === 0) { b.n = 2; b.t = 0.3; }   // Chip-Regen nur jede zweite Runde
+      else if (b.n === 1 && b.t <= 0) { for (let k = 0; k < 4; k++) C.hz.push({ kind: 'chip', x: k === 0 ? p.x + 6 : rnd(16, 280), warn: 0.9 + k * 0.35, w: 12 }); b.n = 2; b.t = 2.6; }
+      else if (b.n === 2 && b.t <= 0) { b.stage = 'roll'; b.dieP = { x: 168, y: 128, r: 9, gone: 0, kdie: true }; C.pinks.push(b.dieP); chMsg('SPRING UND PARIER DEN PINKEN WÜRFEL!', 2.5); }
+    } else if (b.stage === 'roll') {                                 // geparierter Würfel rollt: die Zahl bestimmt den Miniboss
+      if (b.dieP && b.dieP.gone > 0) { C.pinks = C.pinks.filter(s => s !== b.dieP); b.dieP = null; b.rollT = 1.1; tone(400, 900, 0.5, 'square', 0.04); }
+      if (b.rollT > 0) {
+        b.rollT -= DT;
+        if (b.rollT <= 0) {
+          b.roll = 1 + Math.floor(Math.random() * 5);
+          let i = b.roll - 1; while (b.done.includes(i)) i = (i + 1) % 5;   // schon besiegt? dann der nächste
+          b.pos = i; C.mini = kdMakeMini(i); b.stage = 'mini';
+          chMsg(`${b.roll}! ${KD_MINIS[i].name}!`, 1.8); SFX.boss();
+        }
       }
-    } else if (b.state === 'chips') {                                // Pokerchips regnen
-      if (b.n === 0) { for (let k = 0; k < (ph === 1 ? 4 : 5); k++) C.hz.push({ kind: 'chip', x: k === 0 ? p.x + 6 : rnd(16, 280), warn: 0.9 + k * 0.35, w: 12 }); b.n = 1; b.t = 2.6; }
-      if (b.t <= 0) { b.state = 'idle'; b.t = 0.5; }
-    } else if (b.state === 'hand') {                                 // seine Riesenhand haut auf den Tisch
-      if (b.t <= 0) { C.hz.push({ kind: 'hand', x: clamp(p.x + 6, 24, VW - 60), warn: 0.9, act: 0.4, w: 44 }); b.n++; b.t = 1.1; if (b.n >= 2) { b.state = 'idle'; b.t = 1; } }
-    } else if (b.state === 'dice') {                                 // er wirft springende Würfel
-      if (b.t <= 0) { fire({ x: b.x - 6, y: CH_GROUND - 60, r: 11, vx: -2.2 - b.n * 0.5, vy: -2, grav: 0.24, bounce: 6, kind: 'die', face: 5 - b.n * 2 }); b.n++; b.t = 1; if (b.n >= 2) { b.state = 'idle'; b.t = 1.5; } }
+    } else if (b.stage === 'mini') {
+      if (C.mini) kdMini(C.mini, fire);
+    } else if (b.stage === 'final') {                                // jetzt kämpft König Würfel selbst
+      if (b.state === 'idle') {
+        if (b.t <= 0) { const plan = ['march', 'hand', 'dice', 'chips', 'hand']; b.state = plan[b.seq++ % plan.length]; b.t = 0.6; b.n = 0; }
+      } else if (b.state === 'march') {
+        if (b.t <= 0) { kdMarch(fire, 1.6); b.state = 'idle'; b.t = 5; }
+      } else if (b.state === 'chips') {
+        if (b.n === 0) { for (let k = 0; k < 5; k++) C.hz.push({ kind: 'chip', x: k === 0 ? p.x + 6 : rnd(16, 280), warn: 0.9 + k * 0.35, w: 12 }); b.n = 1; b.t = 2.6; }
+        if (b.t <= 0) { b.state = 'idle'; b.t = 0.5; }
+      } else if (b.state === 'hand') {                               // seine Riesenhand haut auf den Tisch
+        if (b.t <= 0) { C.hz.push({ kind: 'hand', x: clamp(p.x + 6, 24, VW - 60), warn: 0.9, act: 0.4, w: 44 }); b.n++; b.t = 1.1; if (b.n >= 2) { b.state = 'idle'; b.t = 1; } }
+      } else if (b.state === 'dice') {                               // er wirft springende Würfel
+        if (b.t <= 0) { fire({ x: b.x - 6, y: CH_GROUND - 60, r: 11, vx: -2.2 - b.n * 0.5, vy: -2, grav: 0.24, bounce: 6, kind: 'die', face: 5 - b.n * 2 }); b.n++; b.t = 1; if (b.n >= 2) { b.state = 'idle'; b.t = 1.5; } }
+      }
     }
   } else if (b.kind === 'devil') {                                   // der Teufel
     if (b.state === 'idle') {
@@ -7880,6 +7903,7 @@ function chDrawBoss4(b) {
       chLine([x + b.w - 4, y + 20, x + b.w + 6, y + 10, x + b.w + 8, y], 2.4); chOval(x + b.w + 8, y - 2, 4, 4, '#ff6ab0', 1.4);   // Hebel
     }
   } else if (b.kind === 'king') {                                    // König Würfel: Würfelkopf mit Krone, lila Anzug
+    ctx.save(); if (b.stage && b.stage !== 'final') ctx.globalAlpha = 0.45;   // beim Brettspiel schaut er nur zu
     chBox(cx - 14, y + 30, 28, 34, '#6a2a9a', 2, 5); chBox(cx - 3, y + 30, 6, 26, '#f4f0e8', 1, 1); chOval(cx, y + 33, 5, 3, '#ffd23f', 1.2);
     chLine([cx - 6, y + 64, cx - 7, y + 68, cx - 6, y + 73], 2.2); chLine([cx + 6, y + 64, cx + 7, y + 68, cx + 6, y + 73], 2.2);
     chOval(cx - 7, y + 73, 4, 2, '#1a1a1a', 1); chOval(cx + 7, y + 73, 4, 2, '#1a1a1a', 1);
@@ -7890,6 +7914,7 @@ function chDrawBoss4(b) {
     chBox(-15, -15, 30, 30, '#ffffff', 2, 6); chEyes(b.face * 2, -3, 1.1, b.face * 0.8);
     chLine([-8, 7, b.face * 2, 11, 8, 7], 1.6); for (const [a, c] of [[-10, -10], [10, -10], [-10, 10], [10, 10]]) chOval(a, c, 1.6, 1.6, CH_INK, 0);
     chBox(-10, -22, 20, 8, '#ffd23f', 1.4, 1); for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(-10 + k * 8, -22); ctx.lineTo(-6 + k * 8, -28); ctx.lineTo(-2 + k * 8, -22); ctx.closePath(); ctx.fillStyle = '#ffd23f'; ctx.fill(); ctx.strokeStyle = CH_INK; ctx.lineWidth = 1.2; ctx.stroke(); }
+    ctx.restore();
     ctx.restore();
   } else if (b.kind === 'devil') {                                   // der Teufel auf seinem Thron
     chBox(x + 4, y + 20, b.w - 8, b.h - 20, '#c8a040', 2, 6); chBox(x + 12, y + 30, b.w - 24, b.h - 40, '#8a1a2a', 1.6, 4);   // Thron
@@ -7934,6 +7959,116 @@ function drawPart11c() {
   text('← ZURÜCK ZU INSEL 2', 8, 150, 8, '#f4e0c0', 'left', CH_INK);
   text('A/D = LAUFEN · H = TEIL 1', VW / 2, 212, 8, '#fff7e0', 'center', CH_INK);
 }
+// ---------- König Würfel: Spielbrett mit 5 Minibossen
+const KD_MINIS = [
+  { name: 'PIROULETTA', w: 26, h: 44, icon: '#d62828' },             // Roulette-Tänzerin
+  { name: 'CHIP-TURM', w: 26, h: 50, icon: '#3a6ad8' },              // Stapel aus Pokerchips
+  { name: 'HASE HOKUS', w: 24, h: 40, icon: '#f4f0e8' },             // Zauberer-Hase
+  { name: 'DOMINO-DUO', w: 34, h: 40, icon: '#ffd23f' },             // zwei Dominosteine
+  { name: 'ACHTER-KUGEL', w: 30, h: 30, icon: '#1a1a1a' },           // Billardkugel
+];
+const KD_MINI_HP = 80, KD_KING_HP = 220;
+function kdMarch(fire, sp) {                                          // Kartensoldaten: zu hoch zum Drüberspringen – auf jeder kann man parieren
+  for (let k = 0; k < 7; k++) fire({ x: -110 + k * 14, y: CH_GROUND - 40, w: 12, h: 40, vx: sp, kind: 'soldier', pink: true, wave: true, life: 9 });
+  chMsg('KARTENSOLDATEN! SPRING UND PARIER EINE KARTE!', 1.8);
+}
+function kdMakeMini(i) {
+  const d = KD_MINIS[i];
+  return { i, x: 260, y: CH_GROUND - d.h, w: d.w, h: d.h, hp: KD_MINI_HP, state: 'idle', t: 1.2, n: 0, seq: 0, anim: 0, face: -1, vis: 1, vx: -1.3, vy: -3 };
+}
+function kdMini(m, fire0) {
+  const C = G.ch, p = C.p, fire = o => fire0(Object.assign({ mini: true }, o));
+  m.t -= DT; m.anim += DT;
+  const dx = p.x + 6 - (m.x + m.w / 2), dir = dx < 0 ? -1 : 1; m.face = dir;
+  if (m.i === 0) {                                                   // Pirouletta: Roulettekugeln und Drehung über den Boden
+    if (m.state === 'idle') { if (m.t <= 0) { m.state = ['balls', 'spin'][m.seq++ % 2]; m.t = 0.5; m.n = 0; } }
+    else if (m.state === 'balls') { if (m.t <= 0) { fire({ x: m.x + m.w / 2, y: CH_GROUND - 6, r: 6, vx: dir * 2.6, roll: true, kind: 'ball', life: 5 }); m.n++; m.t = 0.8; if (m.n >= 3) { m.state = 'idle'; m.t = 1; } } }
+    else if (m.state === 'spin') {
+      if (m.n === 0) { m.n = 1; m.h = 22; m.y = CH_GROUND - 22; m.svx = (m.x > VW / 2 ? -1 : 1) * 3.2; chMsg('SIE DREHT SICH! SPRING DRÜBER!', 0.9); }
+      m.x += m.svx; if (m.x < 8 || m.x > VW - 8 - m.w) { m.x = clamp(m.x, 8, VW - 8 - m.w); m.h = 44; m.y = CH_GROUND - 44; m.state = 'idle'; m.t = 0.9; }
+    }
+  } else if (m.i === 1) {                                            // Chip-Turm: Chips fliegen hoch (ducken) und tief (springen), dazu Chip-Regen
+    if (m.state === 'idle') { if (m.t <= 0) { m.state = ['spread', 'rain'][m.seq++ % 2]; m.t = 0.5; m.n = 0; } }
+    else if (m.state === 'spread') { if (m.t <= 0) { const high = m.n % 2 === 1; fire({ x: m.x, y: high ? CH_GROUND - 25 : CH_GROUND - 7, r: 6, vx: -3, kind: 'chip', pink: m.n === 2 }); m.n++; m.t = 0.55; if (m.n >= 6) { m.state = 'idle'; m.t = 1; } } }
+    else if (m.state === 'rain') { if (m.n === 0) { for (let k = 0; k < 4; k++) C.hz.push({ kind: 'chip', x: k === 0 ? p.x + 6 : rnd(16, 250), warn: 0.9 + k * 0.35, w: 12 }); m.n = 1; m.t = 2.4; } if (m.t <= 0) { m.state = 'idle'; m.t = 0.5; } }
+  } else if (m.i === 2) {                                            // Hase Hokus: zaubert sich auf die andere Seite und lässt Sterne kreisen
+    if (m.state === 'idle') { if (m.t <= 0) { m.state = ['stars', 'poof'][m.seq++ % 2]; m.t = 0.5; m.n = 0; } }
+    else if (m.state === 'stars') { if (m.t <= 0) { for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; fire({ x: m.x + 12 + Math.cos(a) * 18, y: m.y + 18 + Math.sin(a) * 18, r: 5, vx: Math.cos(a) * 1.4, vy: Math.sin(a) * 1.4, kind: 'star', pink: k === 3, life: 6 }); } tone(800, 1200, 0.2, 'triangle', 0.04); m.state = 'idle'; m.t = 2; } }
+    else if (m.state === 'poof') {
+      if (m.n === 0) { m.n = 1; m.t = 0.6; chPuff(m.x + 12, m.y + 20, '#e8e0f0', 12, 2); }
+      m.vis = m.n === 1 ? Math.max(0, m.t / 0.6) : Math.min(1, m.vis + DT * 3);
+      if (m.n === 1 && m.t <= 0) { m.n = 2; m.x = m.x > VW / 2 ? 40 : 300; m.t = 0.5; chPuff(m.x + 12, m.y + 20, '#e8e0f0', 12, 2); }
+      else if (m.n === 2 && m.t <= 0) { m.vis = 1; m.state = 'idle'; m.t = 0.6; }
+    }
+  } else if (m.i === 3) {                                            // Domino-Duo: Pfeile hoch und tief, dazu fallende Dominosteine
+    if (m.state === 'idle') { if (m.t <= 0) { m.state = ['darts', 'tiles'][m.seq++ % 2]; m.t = 0.5; m.n = 0; } }
+    else if (m.state === 'darts') { if (m.t <= 0) { const high = m.n % 2 === 0; fire({ x: m.x, y: high ? CH_GROUND - 28 : CH_GROUND - 11, w: 14, h: 6, vx: -3.2, kind: 'dart', pink: m.n === 1 }); m.n++; m.t = 0.6; if (m.n >= 4) { m.state = 'idle'; m.t = 1; } } }
+    else if (m.state === 'tiles') { if (m.n === 0) { for (let k = 0; k < 3; k++) C.hz.push({ kind: 'tile', x: k === 0 ? p.x + 6 : rnd(16, 250), warn: 0.9 + k * 0.4, w: 12 }); m.n = 1; m.t = 2.3; } if (m.t <= 0) { m.state = 'idle'; m.t = 0.5; } }
+  } else if (m.i === 4) {                                            // Achter-Kugel: prallt durch die Arena und schießt kleine Kugeln
+    m.x += m.vx; m.vy += 0.15; m.y += m.vy;                          // rollt über den Boden (drüber springen!) und hüpft ab und zu
+    if (m.x < 10 || m.x > VW - 10 - m.w) m.vx = -m.vx;
+    m.hopT = (m.hopT || 2.5) - DT;
+    if (m.y >= CH_GROUND - m.h) { m.y = CH_GROUND - m.h; m.vy = 0; if (m.hopT <= 0) { m.vy = -4.2; m.hopT = 2.8; tone(180, 120, 0.05, 'square', 0.03); } }
+    m.x = clamp(m.x, 10, VW - 10 - m.w);
+    if (m.t <= 0) { const a = Math.atan2(p.y + 10 - (m.y + 15), p.x + 6 - (m.x + 15)); fire({ x: m.x + 15, y: m.y + 15, r: 4, vx: Math.cos(a) * 2.3, vy: Math.sin(a) * 2.3, kind: 'cueball', pink: m.n % 3 === 2, life: 5 }); m.n++; m.t = 1.4; }
+  }
+}
+function kdMiniDown() {                                               // Miniboss besiegt: zurück aufs Spielbrett
+  const C = G.ch, b = C.b, m = C.mini;
+  chPuff(m.x + m.w / 2, m.y + m.h / 2, '#fff7e0', 18, 2.6); SFX.kill(); C.shake = 4;
+  b.done.push(m.i); C.mini = null; C.eb = C.eb.filter(s => !s.mini); C.hz = [];
+  b.hp = (5 - b.done.length) * KD_MINI_HP + KD_KING_HP;
+  if (b.done.length >= 5) { b.stage = 'final'; b.state = 'idle'; b.t = 1.5; b.seq = 0; chMsg('ALLE 5 BESIEGT! JETZT KÖNIG WÜRFEL SELBST!', 2.2); SFX.boss(); }
+  else { b.stage = 'march'; b.n = 0; b.t = 1.4; chMsg(`${KD_MINIS[m.i].name} BESIEGT! NOCH ${5 - b.done.length}!`, 1.8); }
+}
+function kdDrawMini(m) {
+  const x = m.x, y = m.y, cx = x + m.w / 2, t = m.anim;
+  ctx.save(); ctx.globalAlpha = m.vis;
+  if (m.i === 0) {                                                   // Pirouletta
+    if (m.h < 30) { ctx.translate(cx, y + 11); ctx.rotate(t * 8); chOval(0, 0, 12, 11, '#1a1a1a', 1.6); for (let k = 0; k < 8; k++) { ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 10, k * Math.PI / 4, k * Math.PI / 4 + 0.39); ctx.closePath(); ctx.fillStyle = '#d62828'; ctx.fill(); } }
+    else {
+      chLine([cx - 3, y + 30, cx - 4, y + 38, cx - 3, y + 44], 1.6); chLine([cx + 3, y + 30, cx + 6, y + 38, cx + 9, y + 42], 1.6);
+      chOval(cx, y + 26, 13, 6, '#d62828', 1.6); for (let k = -10; k <= 10; k += 5) rect(cx + k, y + 21, 2, 10, '#1a1a1a');
+      chBox(cx - 5, y + 12, 10, 12, '#d62828', 1.4, 3); chOval(cx, y + 6, 6, 6, '#f0d0b0', 1.4); chEyes(cx + m.face, y + 5, 0.45, m.face * 0.5);
+      chOval(cx, y - 1, 4, 3, '#1a1a1a', 1); chLine([cx - 5, y + 14, cx - 12, y + 6, cx - 14, y], 1.4); chLine([cx + 5, y + 14, cx + 12, y + 6, cx + 14, y], 1.4);
+    }
+  } else if (m.i === 1) {                                            // Chip-Turm
+    const cols = ['#d62828', '#3a6ad8', '#1a1a1a', '#3a9a3a', '#d62828', '#3a6ad8'];
+    for (let k = 0; k < 6; k++) { const cy = y + m.h - 4 - k * 8 + Math.sin(t * 3 + k) * 0.8; chOval(cx, cy, 13, 4, cols[k], 1.4); for (let s2 = -9; s2 <= 9; s2 += 6) rect(cx + s2, cy - 1, 2, 2, '#ffffff'); }
+    chEyes(cx + m.face * 2, y + 4, 0.7, m.face * 0.6);
+  } else if (m.i === 2) {                                            // Hase Hokus mit Zylinder und Zauberstab
+    chOval(cx - 4, y + 2, 3, 9, '#f4f0e8', 1.2); chOval(cx + 4, y + 2, 3, 9, '#f4f0e8', 1.2);
+    chBox(cx - 8, y + 20, 16, 20, '#1a1a2a', 1.6, 4); chOval(cx, y + 14, 9, 8, '#f4f0e8', 1.6); chEyes(cx + m.face * 2, y + 13, 0.5, m.face * 0.5); chOval(cx + m.face * 3, y + 18, 1.5, 1, '#ff9ab0', 0);
+    chBox(cx - 7, y + 4, 14, 3, '#1a1a1a', 1, 1); chBox(cx - 5, y - 4, 10, 8, '#1a1a1a', 1, 1);
+    chLine([cx + m.face * 8, y + 24, cx + m.face * 13, y + 20, cx + m.face * 16, y + 16], 1.6); rect(cx + m.face * 16 - 1, y + 14, 3, 3, '#ffffff');
+  } else if (m.i === 3) {                                            // zwei Dominosteine
+    for (const k of [-1, 1]) {
+      const bx = cx + k * 9 - 7, by = y + (k > 0 ? 4 : 0) + Math.sin(t * 2 + k) * 1.5;
+      chBox(bx, by, 14, 36, '#f8f4ea', 1.6, 3); rect(bx + 1, by + 17, 12, 1.4, CH_INK);
+      chEyes(bx + 7, by + 8, 0.45, m.face * 0.5); for (const [a, c] of [[4, 23], [10, 29], [7, 26]]) chOval(bx + a, by + c, 1.3, 1.3, CH_INK, 0);
+    }
+  } else if (m.i === 4) {                                            // Achter-Kugel
+    chOval(cx, y + 15, 15, 15, '#1a1a1a', 1.8); chOval(cx - 3, y + 11, 7, 7, '#ffffff', 1); text('8', cx - 3, y + 7, 8, CH_INK, 'center', null);
+    chEyes(cx + 5, y + 18, 0.55, m.face * 0.6); chOval(cx - 8, y + 6, 2.5, 1.5, 'rgba(255,255,255,.5)', 0);
+  }
+  ctx.restore();
+}
+function kdDrawBoard(b) {                                             // Spielbrett oben: Start, 5 Minibosse, König
+  const x0 = 96, y0 = 14;
+  for (let k = 0; k < 7; k++) {
+    const x = x0 + k * 28, mi = k - 1, done = mi >= 0 && mi < 5 && b.done.includes(mi), cur = b.stage === 'mini' && b.pos === mi;
+    chBox(x, y0, 24, 16, k === 0 ? '#3a9a3a' : k === 6 ? '#c8a040' : cur ? '#ff6ab0' : '#f4ead0', 1.2, 2);
+    if (k === 0) text('LOS', x + 12, y0 + 4, 8, '#ffffff', 'center', null);
+    else if (k === 6) { ctx.beginPath(); ctx.moveTo(x + 5, y0 + 12); ctx.lineTo(x + 5, y0 + 5); ctx.lineTo(x + 9, y0 + 8); ctx.lineTo(x + 12, y0 + 3); ctx.lineTo(x + 15, y0 + 8); ctx.lineTo(x + 19, y0 + 5); ctx.lineTo(x + 19, y0 + 12); ctx.closePath(); ctx.fillStyle = '#ffd23f'; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = CH_INK; ctx.stroke(); }   // Krone = König Würfel
+    else { chOval(x + 12, y0 + 8, 5, 5, KD_MINIS[mi].icon, 1); if (done) text('✓', x + 12, y0 + 3, 8, '#3a9a3a', 'center', null); }
+  }
+  if (b.rollT > 0 || (b.stage === 'mini' && b.roll && G.ch.msgT > 0)) {   // großer rollender Würfel in der Mitte
+    const k = Math.max(0, b.rollT || 0); ctx.save(); ctx.translate(VW / 2, 70); ctx.rotate(k * 9);
+    chBox(-12, -12, 24, 24, '#ffffff', 2, 4);
+    if (!(b.rollT > 0)) { const pip = [[[0, 0]], [[-5, -5], [5, 5]], [[-5, -5], [0, 0], [5, 5]], [[-5, -5], [5, -5], [-5, 5], [5, 5]], [[-5, -5], [5, -5], [0, 0], [-5, 5], [5, 5]]][b.roll - 1]; for (const [a, c] of pip) chOval(a, c, 2, 2, CH_INK, 0); }
+    ctx.restore();
+  }
+}
 function chHazards() {
   const C = G.ch;
   for (const h of C.hz) {
@@ -7941,6 +8076,7 @@ function chHazards() {
       if (h.kind === 'drop') C.eb.push({ x: h.x, y: -10, vx: 0, vy: 4.2, r: 6, kind: 'drop', life: 3 });
       if (h.kind === 'chip') C.eb.push({ x: h.x, y: -10, vx: 0, vy: 3.8, r: 6, kind: 'chip', life: 3 });
       if (h.kind === 'tear') C.eb.push({ x: h.x, y: -10, vx: 0, vy: 4.4, r: 4, kind: 'tear', pink: h.pink, life: 3 });
+      if (h.kind === 'tile') C.eb.push({ x: h.x - 5, y: -20, w: 10, h: 18, vx: 0, vy: 4, kind: 'tile', mini: true, life: 3 });
       if (h.kind === 'bell') C.eb.push({ x: h.x, y: -10, vx: 0, vy: 4, r: 7, kind: 'bell', life: 3 });
       if (h.kind === 'seed') C.eb.push({ x: h.x, y: -10, vx: 0, vy: 3.5, r: 4, kind: 'fseed', life: 4 });
       if (h.act == null) h.done = true;
@@ -8081,7 +8217,7 @@ function chBg(C) {
     for (let x = ((-cx * 0.3) % 32 + 32) % 32 - 32; x < VW; x += 32) rect(x, 0, 2, 150, '#4a2a5a');
     for (let i = 0; i < 5; i++) { const x = ((i * 120 - cx * 0.3) % 600 + 600) % 600 - 60; rect(x, 0, 1, 22, '#c8a040'); ctx.globalAlpha = 0.16; chOval(x, 34, 30, 22, '#ffe8a0', 0); ctx.globalAlpha = 1; chOval(x, 28, 12, 7, '#ffd23f', 1.4); }
     for (let i = 0; i < 8; i++) { const x = ((i * 90 - cx * 0.5) % 720 + 720) % 720 - 60; chBox(x, 120, 30, 46, '#c8a040', 1.4, 4); chBox(x + 4, 128, 22, 12, '#1a1a2a', 1, 2); for (let k = 0; k < 3; k++) chOval(x + 8 + k * 7, 134, 2, 2, ['#d62828', '#ffd23f', '#3a6ad8'][(i + k) % 3], 0); }
-    if (kind === 'king') { for (let k = 0; k < 9; k++) chBox(10 + k * 42, 176, 36, 14, k % 2 ? '#c82a2a' : '#1a1a1a', 1.2, 2); text('START', 28, 179, 8, '#ffffff', 'center', null); }   // Spielbrett
+    if (kind === 'king') { for (let k = 0; k < 9; k++) chBox(10 + k * 42, 176, 36, 14, k % 2 ? '#c82a2a' : '#1a1a1a', 1.2, 2); }   // Spielbrett
   } else if (kind === 'hoelle' || kind === 'devil') {               // Hölle: Felsspitzen, glühende Tiefe
     for (let i = 0; i < 9; i++) { const x = ((i * 110 - cx * 0.4) % 990 + 990) % 990 - 60; ctx.beginPath(); ctx.moveTo(x, 196); ctx.lineTo(x + 22, 90 + (i * 29) % 60); ctx.lineTo(x + 44, 196); ctx.closePath(); ctx.fillStyle = '#3a0a0a'; ctx.fill(); ctx.lineWidth = 1.4; ctx.strokeStyle = CH_INK; ctx.stroke(); }
     ctx.globalAlpha = 0.25 + 0.05 * Math.sin(G.t); chOval(VW / 2, 230, 260, 60, '#ff8a1c', 0); ctx.globalAlpha = 1;
@@ -8123,6 +8259,10 @@ function chDrawShot(s, cx) {
   if (s.pink && s.r) { chOval(x, y, s.r + 0.5, s.r + 0.5, '#ff6ab0', 1.4); chOval(x - s.r * 0.3, y - s.r * 0.3, s.r * 0.3, s.r * 0.3, '#ffd0e8', 0); return; }
   switch (s.kind) {
     case 'ink': case 'drop': chOval(x, y, s.r, s.r, '#2a2440', 1.4); chOval(x - 1.5, y - 1.5, 1.4, 1.4, '#8a80b0', 0); break;
+    case 'star': { ctx.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? s.r * 0.45 : s.r; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } ctx.closePath(); ctx.fillStyle = '#f4e04a'; ctx.fill(); ctx.lineWidth = 1.2; ctx.strokeStyle = CH_INK; ctx.stroke(); break; }
+    case 'dart': chBox(x, y, s.w, s.h, s.pink ? '#ff6ab0' : '#c8a040', 1.2, 1); ctx.beginPath(); ctx.moveTo(x, y - 1); ctx.lineTo(x - 5, y + s.h / 2); ctx.lineTo(x, y + s.h + 1); ctx.closePath(); ctx.fillStyle = '#9a9aa8'; ctx.fill(); ctx.stroke(); break;
+    case 'cueball': chOval(x, y, s.r, s.r, '#f8f8f8', 1.2); break;
+    case 'tile': chBox(x, y, s.w, s.h, '#f8f4ea', 1.4, 2); rect(x + 1, y + 8, s.w - 2, 1.2, CH_INK); chOval(x + 5, y + 4, 1.2, 1.2, CH_INK, 0); chOval(x + 5, y + 13, 1.2, 1.2, CH_INK, 0); break;
     case 'fist': chOval(x + s.w / 2, y + s.h / 2, s.w / 2, s.h / 2, s.pink ? '#ff6ab0' : '#d62828', 1.4); rect(x + s.w - 4, y + 2, 2, s.h - 4, s.pink ? '#ffd0e8' : '#ff8a8a'); break;
     case 'firefly': chOval(x, y, s.r, s.r, '#f4e04a', 1.2); chOval(x + 2, y - 3, 3, 2, 'rgba(255,255,255,.8)', 1); break;
     case 'frogball': { ctx.save(); ctx.translate(x, y); ctx.rotate(s.x * 0.12); chOval(0, 0, s.r, s.r, '#5aaa4a', 1.8); chOval(-4, -4, 3, 3, '#ffffff', 1); chOval(5, 3, 3, 2, '#d62828', 1); ctx.restore(); break; }
@@ -8271,6 +8411,7 @@ function drawCH() {
   chBg(C); chDrawGround(C);
   // Parry-Sterne/Ballons, Münzen, Warnungen
   for (const s of C.pinks) if (s.gone <= 0) {
+    if (s.kdie) { const bob = Math.sin(G.t * 3) * 2; chBox(s.x - 9, s.y - 9 + bob, 18, 18, '#ff6ab0', 2, 4); for (const [a, c] of [[-4, -4], [4, 4], [0, 0]]) chOval(s.x + a, s.y + c + bob, 1.8, 1.8, '#ffffff', 0); continue; }
     if (C.run && C.run.bg === 'bonbon') { rect(s.x - cx - 0.5, s.y + 6, 1.5, 14, '#ffffff'); chOval(s.x - cx, s.y, 7, 7, '#ff6ab0', 1.4); ctx.beginPath(); ctx.arc(s.x - cx, s.y, 4, 0, 4.5); ctx.strokeStyle = '#ffd0e8'; ctx.lineWidth = 1.2; ctx.stroke(); }
     else if (C.run && C.run.bg === 'markt') { chLine([s.x - cx, s.y + 7, s.x - cx + 1, s.y + 14, s.x - cx, s.y + 20], 1, CH_INK); chOval(s.x - cx, s.y, 7, 8, '#ff6ab0', 1.4); chOval(s.x - cx - 2, s.y - 3, 2, 2.5, '#ffd0e8', 0); }
     else { const r = 7 + Math.sin(G.t * 2) * 0.6; ctx.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * 0.45 : r; ctx.lineTo(s.x - cx + Math.cos(a) * rr, s.y + Math.sin(a) * rr); } ctx.closePath(); ctx.fillStyle = '#ff6ab0'; ctx.fill(); ctx.lineWidth = 1.2; ctx.strokeStyle = CH_INK; ctx.stroke(); }
@@ -8295,6 +8436,7 @@ function drawCH() {
   }
   for (const e of C.en) if (!e.dead && e.on) chDrawEnemy(e, cx);
   if (C.b && !(C.phase === 'ko' && C.t > 1.2)) chDrawBoss(C.b);
+  if (C.mini) kdDrawMini(C.mini);
   for (const s of C.eb) chDrawShot(s, cx);
   // Spieler
   const pose = p.superT > 0 ? 'stand' : p.dashT > 0 ? 'dash' : p.duck ? 'duck' : !p.onGround ? 'air' : Math.abs(p.vx) > 0.1 ? 'run' : 'stand';
@@ -8319,7 +8461,8 @@ function drawCH() {
   }
   text(p.weapon ? 'STREU' : 'KERN', 100, VH - 17, 8, '#fff7e0', 'left', CH_INK);
   if (C.run) { text(`MÜNZEN ${C.coins}/5`, VW - 6, 6, 8, '#ffd23f', 'right', CH_INK); }
-  if (C.msgT > 0 && C.msg) text(C.msg, VW / 2, 30, 8, '#fff7e0', 'center', CH_INK);
+  if (C.b && C.b.kind === 'king' && C.b.done) kdDrawBoard(C.b);
+  if (C.msgT > 0 && C.msg) text(C.msg, VW / 2, 36, 8, '#fff7e0', 'center', CH_INK);
   // Start, K.O., Verloren, Bewertung
   if (C.phase === 'intro') {
     const k = Math.min(1, C.t / 0.6), r = k * 260;                  // Blende geht auf wie im alten Kino
