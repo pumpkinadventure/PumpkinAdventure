@@ -7852,9 +7852,7 @@ function chBoss4(b, ph, dx, fire) {
     }
   } else if (b.kind === 'devil') {                                   // der Teufel
     if (b.state === 'idle') {
-      if (b.t <= 0) { const plan = [null, ['spider', 'orbs', 'trident', 'spider'], ['bounce', 'pillars', 'spider', 'orbs'], ['tears', 'spider', 'bounce', 'spider']][ph]; b.state = plan[b.seq++ % plan.length]; b.t = 0.5; b.n = 0; }
-    } else if (b.state === 'spider') {                               // sein Kopf fällt wie eine Spinne von oben auf dich
-      if (b.t <= 0) { C.hz.push({ kind: 'spider', x: clamp(p.x + 6, 22, VW - 22), warn: ph === 3 ? 0.8 : 1, act: 0.6, w: 40 }); b.n++; b.t = ph === 3 ? 1 : 1.3; if (b.n >= (ph === 3 ? 3 : 2)) { b.state = 'idle'; b.t = 1; } }
+      if (b.t <= 0) { const plan = [null, ['orbs', 'trident'], ['bounce', 'pillars', 'orbs'], ['tears', 'bounce', 'pillars']][ph]; b.state = plan[b.seq++ % plan.length]; b.t = 0.5; b.n = 0; }
     } else if (b.state === 'orbs') {                                 // ein Kreis aus Feuerkugeln fliegt auseinander
       if (b.t <= 0) { for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4 + 0.2; fire({ x: 150 + Math.cos(a) * 26, y: 80 + Math.sin(a) * 26, r: 6, vx: Math.cos(a) * 1.3, vy: Math.sin(a) * 1.3, kind: 'fireball', pink: k === 2, life: 7 }); } tone(300, 600, 0.3, 'sawtooth', 0.04); b.state = 'idle'; b.t = 2.2; }
     } else if (b.state === 'trident') {                              // Dreizack-Feuer fächert über den Boden
@@ -8083,7 +8081,7 @@ function chHazards() {
     } continue; }
     if (h.act != null) {
       h.act -= DT; if (h.act <= 0) { h.done = true; continue; }
-      const box = h.kind === 'steam' ? { x: h.x - 10, y: 30, w: 20, h: CH_GROUND - 30 } : h.kind === 'vine' ? { x: h.x - 6, y: CH_GROUND - 96, w: 12, h: 96 } : h.kind === 'paw' || h.kind === 'hand' ? { x: h.x - 22, y: 0, w: 44, h: CH_GROUND } : h.kind === 'spider' ? { x: h.x - 18, y: 0, w: 36, h: CH_GROUND } : h.kind === 'fire' ? { x: h.x - 9, y: 30, w: 18, h: CH_GROUND - 30 } : h.kind === 'zap' ? { x: 0, y: h.y - 7, w: 300, h: 14 } : { x: h.x - 12, y: CH_GROUND - 8, w: 24, h: 8 };
+      const box = h.kind === 'steam' ? { x: h.x - 10, y: 30, w: 20, h: CH_GROUND - 30 } : h.kind === 'vine' ? { x: h.x - 6, y: CH_GROUND - 96, w: 12, h: 96 } : h.kind === 'paw' || h.kind === 'hand' ? { x: h.x - 22, y: 0, w: 44, h: CH_GROUND } : h.kind === 'fire' ? { x: h.x - 9, y: 30, w: 18, h: CH_GROUND - 30 } : h.kind === 'zap' ? { x: 0, y: h.y - 7, w: 300, h: 14 } : { x: h.x - 12, y: CH_GROUND - 8, w: 24, h: 8 };
       if (C.p.inv <= 0 && chOver(chPBox(), box)) chHurt();
     }
   }
@@ -8428,7 +8426,6 @@ function drawCH() {
       if (h.kind === 'steam') for (let k = 0; k < 2; k++) chOval(x + (k ? 4 : -4), CH_GROUND - 4 - ((G.t * 20 + k * 6) % 12), 2.5, 2.5, '#ffffff', 0); }
     else if (h.kind === 'paw') { const k = Math.min(1, (0.35 - h.act) * 10 + 0.3), py = -30 + (CH_GROUND - 6) * k; chBox(x - 16, -10, 32, py + 10, '#5a4a6a', 1.6, 6); chOval(x, py, 24, 12, '#5a4a6a', 1.8); for (const k2 of [-12, 0, 12]) chOval(x + k2, py + 8, 6, 5, '#f4b0c8', 1.2); }
     else if (h.kind === 'hand') { const k = Math.min(1, (0.4 - h.act) * 10 + 0.3), py = -30 + (CH_GROUND - 8) * k; chBox(x - 10, -10, 20, py + 6, '#6a2a9a', 1.6, 4); chOval(x, py, 22, 12, '#ffffff', 1.8); for (const k2 of [-12, -4, 4, 12]) chOval(x + k2, py + 9, 4, 5, '#ffffff', 1.2); }
-    else if (h.kind === 'spider') { const k = Math.min(1, (0.6 - h.act) * 6 + 0.25), hy = -20 + (CH_GROUND - 22) * k; rect(x - 0.5, 0, 1.5, hy - 14, CH_INK); chOval(x, hy, 18, 18, '#d83a3a', 2); chEyes(x - 2, hy - 4, 1, 0); chLine([x - 8, hy + 6, x, hy + 11, x + 8, hy + 6], 1.6); for (const s2 of [-1, 1]) { chLine([x + s2 * 14, hy - 4, x + s2 * 24, hy - 12, x + s2 * 28, hy - 2], 1.8); chLine([x + s2 * 14, hy + 6, x + s2 * 24, hy + 4, x + s2 * 28, hy + 16], 1.8); } }
     else if (h.kind === 'fire') { const k = Math.min(1, (0.8 - h.act) * 8 + 0.3), top = CH_GROUND - (CH_GROUND - 30) * k; for (let yy = CH_GROUND; yy > top; yy -= 12) chOval(x + Math.sin(yy * 0.3 + G.t * 5) * 2, yy - 4, 9, 8, yy % 24 ? '#ff8a1c' : '#ffd23f', 1.2); }
     else if (h.kind === 'thorn') { for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(x + k * 5 - 3, CH_GROUND); ctx.lineTo(x + k * 5, CH_GROUND - 9); ctx.lineTo(x + k * 5 + 3, CH_GROUND); ctx.closePath(); ctx.fillStyle = '#3a6a2a'; ctx.fill(); ctx.strokeStyle = CH_INK; ctx.lineWidth = 1; ctx.stroke(); } }
     else if (h.kind === 'vine') { const k = Math.min(1, (0.9 - h.act) * 8 + 0.2), top = CH_GROUND - 96 * k; chBox(x - 6, top, 12, CH_GROUND - top, '#3a7a2a', 1.6, 4); for (let yy = CH_GROUND - 10; yy > top + 4; yy -= 14) { chLine([x - 6, yy, x - 9, yy - 2, x - 11, yy - 5], 1.4); chLine([x + 6, yy - 7, x + 9, yy - 9, x + 11, yy - 12], 1.4); } }
