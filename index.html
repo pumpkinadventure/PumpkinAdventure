@@ -1431,6 +1431,7 @@ function goHome() {
   if (G.state.startsWith('fly')) { openPart6(); return; }
   if (G.state === 'au') { openPart10(); return; }
   if (G.state === 'ch') { chMap(); return; }
+  if (G.state === 'dr') { openPart13(); return; }
   if (G.mode === 'dragon' && G.state !== 'part3') { G.mode = 'story'; openPart3(); return; }
   if (G.mode === 'space' && G.state !== 'part4' && G.state !== 'part5') { G.mode = 'story'; if (G.world === 11) openPart12(); else if (G.world === 10) openPart10(); else if (G.world === 9) openPart8(); else if (G.world === 8) openPart9(); else if (G.world === 7) openPart7(); else if (G.world === 5) openPart5(); else openPart4(); return; }
   homeBtn.hidden = true;
@@ -1517,7 +1518,7 @@ const inBox = (pt, b) => pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y
 cv.addEventListener('pointermove', e => {
   const pt = canvasPoint(e);
   if (G.state === 'mc' && G.mc) { G.mc.mouse.x = pt.x; G.mc.mouse.y = pt.y; G.mc.mouse.moved = G.mc.time; cv.style.cursor = 'crosshair'; return; }
-  cv.style.cursor = (G.state === 'part5' && inBox(pt, ufoBox())) || G.state === 'part6' || G.state === 'part9' || G.state === 'part8' || G.state === 'part10' || G.state === 'part11' || G.state === 'part11b' || G.state === 'part12' || G.state === 'part11c' || (G.state === 'part7' && (inBox(pt, PORTAL_BTN) || inBox(pt, RMH_DOOR) || SUDPOL_BTNS.some(bt => inBox(pt, bt)))) || G.state.startsWith('fly') || (G.state === 'title' && inBox(pt, SUN_BTN)) || (G.state === 'part2' && inBox(pt, MOON_BTN)) || G.state === 'part2' || (G.state === 'part3' && (inBox(pt, PORTAL_BTN) || inBox(pt, PLANET_BTN))) || (G.state === 'part5' && (inBox(pt, PORTAL_BTN) || SATURN_BTNS.some(bt => inBox(pt, bt)))) || (G.state === 'part4' && (inBox(pt, PORTAL_BTN) || inBox(pt, SHOP_BTN) || inBox(pt, SATURN_BTN) || (G.space && G.space.shop) || SPACE_BTNS.some(bt => inBox(pt, bt)))) ? 'pointer' : '';
+  cv.style.cursor = (G.state === 'part5' && inBox(pt, ufoBox())) || G.state === 'part6' || G.state === 'part9' || G.state === 'part8' || G.state === 'part10' || G.state === 'part11' || G.state === 'part11b' || G.state === 'part12' || G.state === 'part13' || G.state === 'dr' || G.state === 'part11c' || (G.state === 'part7' && (inBox(pt, PORTAL_BTN) || inBox(pt, RMH_DOOR) || SUDPOL_BTNS.some(bt => inBox(pt, bt)))) || G.state.startsWith('fly') || (G.state === 'title' && inBox(pt, SUN_BTN)) || (G.state === 'part2' && inBox(pt, MOON_BTN)) || G.state === 'part2' || (G.state === 'part3' && (inBox(pt, PORTAL_BTN) || inBox(pt, PLANET_BTN))) || (G.state === 'part5' && (inBox(pt, PORTAL_BTN) || SATURN_BTNS.some(bt => inBox(pt, bt)))) || (G.state === 'part4' && (inBox(pt, PORTAL_BTN) || inBox(pt, SHOP_BTN) || inBox(pt, SATURN_BTN) || (G.space && G.space.shop) || SPACE_BTNS.some(bt => inBox(pt, bt)))) ? 'pointer' : '';
 });
 cv.addEventListener('pointerdown', e => {
   const pt = canvasPoint(e);
@@ -1532,6 +1533,8 @@ cv.addEventListener('pointerdown', e => {
   if (G.state === 'au') { auClick(pt); return; }
   if (G.state === 'part11') { part11Click(pt); return; }
   if (G.state === 'part12') { part12Click(pt); return; }
+  if (G.state === 'part13') { part13Click(pt); return; }
+  if (G.state === 'dr') { press('jump'); return; }   // Klick = springen
   if (G.state === 'part11b') { part11bClick(pt); return; }
   if (G.state === 'part11c') { part11cClick(pt); return; }
   if (G.state === 'ch') { chClick(pt); return; }
@@ -1553,7 +1556,7 @@ cv.addEventListener('pointerdown', e => {
   if (G.state === 'title') { nameIn.focus(); return; }
   cv.focus(); if (G.state !== 'play') press('enter');
 });
-cv.addEventListener('pointerup', () => { release('enter'); if (G.mc) G.mc.mouse.down = false; });
+cv.addEventListener('pointerup', () => { release('enter'); if (G.state === 'dr') release('jump'); if (G.mc) G.mc.mouse.down = false; });
 cv.addEventListener('pointerleave', () => { if (G.mc) G.mc.mouse.down = false; });
 cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('wheel', e => { if (G.state === 'mc' && G.mc && !G.mc.craftOpen) { e.preventDefault(); G.mc.sel = (G.mc.sel + (e.deltaY > 0 ? 1 : -1) + MC_PLACE.length) % MC_PLACE.length; } }, { passive: false });
@@ -4066,6 +4069,13 @@ function step() {
       ['one', 'two', 'three', 'four', 'five'].forEach((k, i) => { if (pressed[k] && G.state === 'part11b') playCH(10 + i); });
       if (pressed.enter && G.state === 'part11b') playCH(Math.max(10, chUnlocked() - 1));
       break;
+    case 'dr':
+      updateDR();
+      break;
+    case 'part13':
+      ['one', 'two', 'three', 'four', 'five'].forEach((k, i) => { if (pressed[k] && G.state === 'part13') playDR(i); });
+      if (pressed.enter && G.state === 'part13') playDR(drUnlocked() - 1);
+      break;
     case 'part12':
       updatePart12();
       ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'].forEach((k, i) => { if (pressed[k] && G.state === 'part12') playDino(i); });
@@ -5414,6 +5424,8 @@ function render() {
   if (G.state === 'au') { drawAU(); return; }
   if (G.state === 'part11') { drawPart11(); return; }
   if (G.state === 'part12') { drawPart12(); return; }
+  if (G.state === 'part13') { drawPart13(); return; }
+  if (G.state === 'dr') { drawDR(); return; }
   if (G.state === 'part11b') { drawPart11b(); return; }
   if (G.state === 'part11c') { drawPart11c(); return; }
   if (G.state === 'ch') { drawCH(); return; }
@@ -7208,6 +7220,7 @@ function updatePart12() {
 }
 function part12Click(pt) {
   if (inBox(pt, PORTAL_BTN)) { openPart11(); return; }
+  if (inBox(pt, DR_DOOR)) { openPart13(); return; }
   const i = DINO_BTNS.findIndex(bt => inBox(pt, bt));
   if (i >= 0) playDino(i);
 }
@@ -7249,7 +7262,210 @@ function drawPart12() {
   else if (store.dinoWon) text('KÖNIG REX IST BESIEGT! ★', VW / 2, 112, 8, '#ffd23f', 'center', '#000');
   else text('KLICK ODER 1-9, 0 = LEVEL STARTEN', VW / 2, 112, 8, '#fff7e0', 'center', '#000');
   drawPortal(PORTAL_BTN, '11', 'TEIL 11');
+  drawDRDoor();
   text('PORTAL = TEIL 11 · A/D = LAUFEN · H = TEIL 1', VW / 2, 212, 8, '#fff7e0', 'center', '#000');
+}
+// ============================================================ Teil 13: Dino-Ritt (der Kürbis reitet auf einem Dino, Leertaste = springen)
+const DR_LV = [
+  { name: 'DSCHUNGELPFAD', len: 9000, sp: 3.0, sp2: 3.6, types: ['stein', 'farn', 'stein', 'stamm'], bg: 'jungle' },
+  { name: 'SUMPFBRÜCKE', len: 11000, sp: 3.4, sp2: 4.0, types: ['stamm', 'grube', 'stein', 'farn'], bg: 'swamp' },
+  { name: 'WÜSTENSCHLUCHT', len: 13000, sp: 3.8, sp2: 4.4, types: ['kaktus', 'pteroL', 'pteroH', 'stein', 'grube'], bg: 'desert' },
+  { name: 'VULKANSTRASSE', len: 15000, sp: 4.2, sp2: 4.9, types: ['lava', 'stein', 'pteroL', 'pteroH', 'stamm'], bg: 'volcano' },
+  { name: 'FLUCHT VOR DEM VULKAN', len: 18000, sp: 4.6, sp2: 5.5, types: ['lava', 'kaktus', 'pteroL', 'pteroH', 'stamm', 'grube', 'stein'], bg: 'erupt' },
+];
+const DR_GROUND = 182, DR_X = 60, DR_G = 0.45, DR_JUMP = 7.8;
+const DR_INFO = {
+  stein: { w: 14, h: 12 }, farn: { w: 12, h: 26 }, kaktus: { w: 12, h: 28 }, stamm: { w: 30, h: 14 },
+  grube: { w: 40, h: 0, pit: true }, lava: { w: 44, h: 0, pit: true },
+  pteroL: { w: 22, h: 10, fly: 16 }, pteroH: { w: 22, h: 10, fly: 52 },       // tief = drüberspringen, hoch = am Boden bleiben
+};
+const drUnlocked = () => storeOK ? clamp(store.drUnlocked || 1, 1, DR_LV.length) : DR_LV.length;
+const DR_BTNS = DR_LV.map((l, i) => ({ x: 62 + i * 54, y: 62, w: 48, h: 23 }));
+const DR_DOOR = { x: 8, y: 72, w: 46, h: 40 };                         // Fußabdruck „13“ auf der Teil-12-Seite
+function openPart13() {
+  G.state = 'part13'; G.stateT = 0; G.mode = 'story';
+  form.hidden = true; homeBtn.hidden = false;
+  G.p13 = { x: 0, lock: null };
+  [262, 330, 392, 330, 523].forEach((f, i) => tone(f, f, 0.1, 'square', 0.04, i * 0.1));
+}
+function part13Click(pt) {
+  if (inBox(pt, PORTAL_BTN)) { openPart12(); return; }
+  const i = DR_BTNS.findIndex(bt => inBox(pt, bt));
+  if (i >= 0) playDR(i);
+}
+function playDR(i) {
+  if (i >= drUnlocked()) { SFX.bump(); if (G.p13) G.p13.lock = { i, t: G.t }; return; }
+  const lv = DR_LV[i];
+  G.dr = { lvl: i, lv, phase: 'ready', t: 0, dist: 0, sp: lv.sp, y: 0, vy: 0, air: false, hp: 3, inv: 0, coins: 0, obs: [], items: [], next: 500, anim: 0, seed: i * 977 + 13, shake: 0, fx: [] };
+  G.state = 'dr'; G.stateT = 0; form.hidden = true; homeBtn.hidden = false;
+}
+function drRand(D) { D.seed = (D.seed * 16807) % 2147483647; return (D.seed - 1) / 2147483646; }
+function drSpawn(D) {                                                   // nächstes Hindernis, mit genug Platz zum Landen
+  const lv = D.lv, type = lv.types[Math.floor(drRand(D) * lv.types.length)], inf = DR_INFO[type];
+  const x = D.dist + VW + 20;
+  D.obs.push({ type, x, w: inf.w, h: inf.h, fly: inf.fly || 0, pit: !!inf.pit, hit: false });
+  if (!inf.pit && !inf.fly && drRand(D) < 0.2 && D.lvl >= 1) D.obs.push({ type: 'stein', x: x + inf.w + 6, w: 14, h: 12, fly: 0, pit: false, hit: false });   // manchmal zwei dicht hintereinander
+  if (drRand(D) < 0.45) for (let k = 0; k < 4; k++) D.items.push({ x: x - 20 + k * 16, y: DR_GROUND - 52 - Math.sin(k / 3 * Math.PI) * 16, taken: false });   // Münzen im Bogen über dem Hindernis
+  const airDist = 36 * D.sp;                                            // so weit fliegt der Dino bei einem Sprung
+  D.next = D.dist + airDist + inf.w + 90 + drRand(D) * (220 - D.lvl * 25);
+}
+function drHurt(D, msg) {
+  if (D.inv > 0) return;
+  D.hp--; D.inv = 1.3; D.shake = 5; SFX.hurt(); D.msg = msg; D.msgT = 1.2;
+  if (D.hp <= 0) { D.phase = 'dead'; D.t = 0; SFX.die(); }
+}
+function updateDR() {
+  const D = G.dr; if (!D) return;
+  D.t += DT; if (D.shake > 0) D.shake = Math.max(0, D.shake - 0.4); if (D.msgT > 0) D.msgT -= DT;
+  for (const f of D.fx) { f.x += f.vx; f.y += f.vy; f.vy += 0.1; f.life -= DT; }
+  D.fx = D.fx.filter(f => f.life > 0);
+  if (pressed.esc) { openPart13(); return; }
+  if (D.phase === 'ready') { if (pressed.jump || pressed.enter) { D.phase = 'run'; D.t = 0; drJump(D); } return; }
+  if (D.phase === 'dead') { if (D.t > 0.8 && (pressed.enter || pressed.jump)) playDR(D.lvl); return; }
+  if (D.phase === 'win') { if (D.t > 1 && (pressed.enter || pressed.jump)) { if (D.lvl + 1 < DR_LV.length) playDR(D.lvl + 1); else openPart13(); } return; }
+  // laufen
+  const k = D.dist / D.lv.len; D.sp = D.lv.sp + (D.lv.sp2 - D.lv.sp) * k;
+  D.dist += D.sp; D.anim += D.sp * 0.08;
+  if (D.inv > 0) D.inv -= DT;
+  // springen: Leertaste (länger halten = höher)
+  if (pressed.jump && !D.air) drJump(D);
+  if (D.air) { D.vy += DR_G; if (!K.jump && D.vy < -3) D.vy = -3; D.y += D.vy; if (D.y >= 0) { D.y = 0; D.vy = 0; D.air = false; for (let i = 0; i < 4; i++) D.fx.push({ x: DR_X + 10 + i * 4, y: DR_GROUND, vx: -D.sp * 0.3, vy: -0.8, life: 0.3, c: '#c8a878' }); } }
+  // Hindernisse
+  if (D.dist >= D.next && D.dist < D.lv.len - VW) drSpawn(D);
+  const box = { x: DR_X + 2, y: DR_GROUND + D.y - 36, w: 28, h: 36 };
+  for (const o of D.obs) {
+    const sx = o.x - D.dist;
+    if (o.pit) {
+      if (!D.air && DR_X + 22 > sx + 4 && DR_X + 8 < sx + o.w - 4) { drHurt(D, o.type === 'lava' ? 'AUTSCH, HEISSE LAVA!' : 'IN DIE GRUBE GESTOLPERT!'); if (D.phase === 'run') { D.vy = -6; D.air = true; } }
+      continue;
+    }
+    if (o.hit) continue;
+    const ob = { x: sx, y: DR_GROUND - o.h - o.fly, w: o.w, h: o.h };
+    if (box.x < ob.x + ob.w && box.x + box.w > ob.x && box.y < ob.y + ob.h && box.y + box.h > ob.y) { o.hit = true; drHurt(D, o.fly ? 'EIN FLUGSAURIER!' : 'GEGEN EIN HINDERNIS GERANNT!'); }
+  }
+  D.obs = D.obs.filter(o => o.x - D.dist > -80);
+  for (const it of D.items) if (!it.taken) { const sx = it.x - D.dist; if (sx > box.x - 6 && sx < box.x + box.w + 6 && it.y > box.y - 6 && it.y < box.y + box.h + 6) { it.taken = true; D.coins++; SFX.coin(); } }
+  D.items = D.items.filter(it => it.x - D.dist > -20);
+  if (D.phase === 'run' && D.dist >= D.lv.len) {                       // Ziel erreicht
+    D.phase = 'win'; D.t = 0; SFX.clear();
+    D.stars = D.hp; store.wallet = wallet() + D.coins + 10 * D.hp;
+    store.drStars = store.drStars || {}; if ((store.drStars[D.lvl] || 0) < D.hp) store.drStars[D.lvl] = D.hp;
+    if (D.lvl + 2 > (store.drUnlocked || 1)) store.drUnlocked = Math.min(DR_LV.length, D.lvl + 2);
+    saveStore();
+  }
+}
+function drJump(D) { D.vy = -DR_JUMP; D.air = true; SFX.jump(); }
+// ---------- Zeichnen
+function drDrawDino(x, gy, anim, alpha, air) {                          // grüner Dino mit Sattel, darauf der Kürbis
+  ctx.save(); ctx.globalAlpha = alpha;
+  const step = air ? 2 : Math.floor(anim) % 2, y = gy - 24;
+  rect(x - 8, y + 10, 12, 5, '#4a9a3a'); rect(x - 12, y + 12, 6, 3, '#4a9a3a');                       // Schwanz
+  rect(x + 2, y + 6, 22, 14, '#5aaa3a'); rect(x + 4, y + 4, 18, 4, '#5aaa3a'); rect(x + 4, y + 16, 18, 4, '#9ad07a');   // Körper und Bauch
+  rect(x + 20, y - 4, 14, 12, '#5aaa3a'); rect(x + 30, y + 2, 6, 6, '#5aaa3a'); rect(x + 28, y, 3, 3, '#14141c'); rect(x + 31, y + 6, 4, 1, '#ffffff');   // Kopf
+  rect(x + 6, y + 2, 2, 3, '#3a7a24'); rect(x + 11, y + 1, 2, 3, '#3a7a24'); rect(x + 16, y + 2, 2, 3, '#3a7a24');   // Zacken
+  if (step === 0) { rect(x + 6, y + 20, 4, 4, '#3a7a24'); rect(x + 16, y + 20, 4, 2, '#3a7a24'); rect(x + 18, y + 22, 4, 2, '#3a7a24'); }
+  else if (step === 1) { rect(x + 6, y + 20, 4, 2, '#3a7a24'); rect(x + 4, y + 22, 4, 2, '#3a7a24'); rect(x + 16, y + 20, 4, 4, '#3a7a24'); }
+  else { rect(x + 6, y + 20, 4, 3, '#3a7a24'); rect(x + 16, y + 20, 4, 3, '#3a7a24'); }
+  rect(x + 8, y + 2, 10, 4, '#a8442a'); rect(x + 8, y + 1, 10, 1, '#c8642a');                          // Sattel
+  // Kürbis-Reiter
+  rect(x + 9, y - 4, 8, 6, '#d62828');                                                                 // Körper
+  rect(x + 7, y - 13, 12, 9, '#f08a1c'); rect(x + 8, y - 14, 10, 11, '#f08a1c'); rect(x + 12, y - 16, 2, 3, '#3f7d20');
+  rect(x + 14, y - 11, 2, 2, '#3a1a05'); rect(x + 17, y - 11, 1, 2, '#3a1a05'); rect(x + 14, y - 7, 4, 1, '#3a1a05');
+  rect(x + 17, y - 3, 6, 2, '#f08a1c');                                                                // Arm hält sich fest
+  ctx.restore();
+}
+function drDrawObstacle(o, sx) {
+  const gy = DR_GROUND;
+  if (o.type === 'stein') { rect(sx, gy - 10, 14, 10, '#8a8478'); rect(sx + 2, gy - 12, 10, 3, '#8a8478'); rect(sx + 3, gy - 10, 4, 2, '#a8a294'); }
+  else if (o.type === 'farn') { rect(sx + 5, gy - 26, 2, 26, '#3a7a24'); for (let k = 0; k < 4; k++) { rect(sx, gy - 24 + k * 6, 5, 2, '#5aaa3a'); rect(sx + 7, gy - 22 + k * 6, 5, 2, '#5aaa3a'); } }
+  else if (o.type === 'kaktus') { rect(sx + 4, gy - 28, 5, 28, '#3a8a4a'); rect(sx, gy - 20, 4, 3, '#3a8a4a'); rect(sx, gy - 24, 2, 4, '#3a8a4a'); rect(sx + 9, gy - 16, 3, 3, '#3a8a4a'); rect(sx + 10, gy - 21, 2, 5, '#3a8a4a'); rect(sx + 5, gy - 27, 1, 26, '#5aaa5a'); }
+  else if (o.type === 'stamm') { rect(sx, gy - 14, 30, 14, '#7a4a2a'); rect(sx, gy - 14, 30, 2, '#9a6a3a'); rect(sx + 26, gy - 13, 4, 12, '#c8a070'); rect(sx + 27, gy - 10, 2, 6, '#9a6a3a'); }
+  else if (o.fly) {
+    const y = gy - o.h - o.fly, wing = Math.sin(G.t * 8 + o.x) > 0 ? -3 : 2;
+    rect(sx + 4, y + 3, 12, 5, '#c86a3a'); rect(sx, y + 4, 5, 2, '#c86a3a'); rect(sx + 1, y + 3, 3, 1, '#ffd23f'); rect(sx + 3, y + 3, 1, 1, '#14141c');
+    rect(sx + 6, y + 2 + wing, 10, 2, '#a85a2a'); rect(sx + 16, y + 5, 5, 2, '#c86a3a');
+  }
+}
+function drawDR() {
+  const D = G.dr, lv = D.lv, cam = D.dist;
+  ctx.save(); if (D.shake > 0) ctx.translate(Math.round(rnd(-D.shake, D.shake) * 0.4), 0);
+  const sky = { jungle: ['#6ac0a0', '#e0f4c8'], swamp: ['#4a6a5a', '#b8c8a0'], desert: ['#f0b860', '#fff0c0'], volcano: ['#5a1a1a', '#f0905a'], erupt: ['#3a0a0a', '#c8502a'] }[lv.bg];
+  for (let i = 0; i < 14; i++) rect(0, i * VH / 14, VW, Math.ceil(VH / 14) + 1, lerpColor(sky[0], sky[1], i / 13));
+  if (lv.bg === 'desert') { rect(310, 26, 22, 22, '#fff3b0'); rect(307, 30, 28, 14, '#fff3b0'); }
+  if (lv.bg === 'volcano' || lv.bg === 'erupt') {                      // Vulkan im Hintergrund
+    const vx = 300 - (cam * 0.03) % 500;
+    for (let k = 0; k < 120; k += 2) { const h = 120 - Math.abs(k - 60) * 2; rect(vx - 60 + k, DR_GROUND - h - 10, 2, h + 10, '#3a1a14'); }
+    rect(vx - 6, DR_GROUND - 132, 12, 4, '#ff6a2a');
+    for (let i = 0; i < 4; i++) { const ph = (G.t * (lv.bg === 'erupt' ? 0.3 : 0.15) + i / 4) % 1; ctx.globalAlpha = 0.5 * (1 - ph); rect(vx - 8 + Math.sin(ph * 6 + i) * 8, DR_GROUND - 140 - ph * 60, 16 + ph * 16, 12, '#8a8080'); } ctx.globalAlpha = 1;
+  }
+  const far = { jungle: '#5a9a6a', swamp: '#4a6048', desert: '#d8a060', volcano: '#4a2a20', erupt: '#3a1a14' }[lv.bg], near = { jungle: '#3a7a4a', swamp: '#3a5038', desert: '#c08848', volcano: '#5a3020', erupt: '#4a2018' }[lv.bg];
+  for (let x = 0; x < VW; x += 2) { const wx = x + cam * 0.15, h = 50 + 14 * Math.sin(wx * 0.012) + 8 * Math.sin(wx * 0.03); rect(x, DR_GROUND - h, 2, h, far); }
+  for (let i = -1; i < 8; i++) {                                         // Bäume, Kakteen oder Felsen im Hintergrund
+    const base = Math.floor(cam * 0.4 / 70) + i, x = Math.round(base * 70 - cam * 0.4), hh = 26 + hash(base) % 20;
+    if (lv.bg === 'jungle' || lv.bg === 'swamp') { rect(x + 20, DR_GROUND - 20 - hh, 4, hh + 20, lv.bg === 'swamp' ? '#3a3a24' : '#6a4a2a'); rect(x + 8, DR_GROUND - 24 - hh, 28, 5, lv.bg === 'swamp' ? '#4a6a3a' : '#3a8a3a'); rect(x + 14, DR_GROUND - 28 - hh, 16, 4, lv.bg === 'swamp' ? '#4a6a3a' : '#3a8a3a'); }
+    else if (lv.bg === 'desert') { rect(x + 20, DR_GROUND - 14 - hh, 5, hh + 14, '#b8a868'); rect(x + 15, DR_GROUND - hh, 5, 3, '#b8a868'); rect(x + 25, DR_GROUND - hh + 6, 5, 3, '#b8a868'); }
+    else { rect(x + 14, DR_GROUND - 10 - hh * 0.6, 18, hh * 0.6 + 10, '#2a1410'); }
+  }
+  for (let x = 0; x < VW; x += 2) { const wx = x + cam * 0.35, h = 22 + 6 * Math.sin(wx * 0.02 + 1); rect(x, DR_GROUND - h, 2, h, near); }
+  // Boden mit Gruben und Lava
+  const gcol = { jungle: '#8a5a32', swamp: '#5a4a32', desert: '#d8b070', volcano: '#4a3028', erupt: '#3a2420' }[lv.bg], top = { jungle: '#5aaa3a', swamp: '#4a7a3a', desert: '#e8c890', volcano: '#6a4a3a', erupt: '#5a3a30' }[lv.bg];
+  rect(0, DR_GROUND, VW, VH - DR_GROUND, gcol); rect(0, DR_GROUND, VW, 3, top);
+  for (let x = -((cam) % 24); x < VW; x += 24) rect(x, DR_GROUND + 10 + ((Math.floor((x + cam) / 24)) % 3) * 6, 8, 2, 'rgba(0,0,0,.15)');
+  for (const o of D.obs) {
+    const sx = o.x - cam; if (sx > VW + 40 || sx + o.w < -40) continue;
+    if (o.pit) { rect(sx, DR_GROUND, o.w, VH - DR_GROUND, o.type === 'lava' ? '#ff6a2a' : '#1a1410'); if (o.type === 'lava') { rect(sx, DR_GROUND + 4, o.w, 3, '#ffd23f'); rect(sx + 6, DR_GROUND + 12, 8, 2, '#ffd23f'); } else rect(sx, DR_GROUND, o.w, 3, '#2a2018'); }
+  }
+  for (const o of D.obs) { const sx = o.x - cam; if (!o.pit && sx < VW + 30 && sx > -40) drDrawObstacle(o, sx); }
+  for (const it of D.items) if (!it.taken) { const sx = it.x - cam; if (sx < -10 || sx > VW + 10) continue; const w = Math.abs(Math.cos(G.t * 3 + it.x)) * 3 + 1; rect(sx - w, it.y - 4, w * 2, 8, '#ffd23f'); rect(sx - w, it.y - 4, w * 2, 1, '#fff3b0'); }
+  // Ziel-Flagge
+  const fx = D.lv.len - cam + DR_X + 40;
+  if (fx < VW + 20) { rect(fx, DR_GROUND - 60, 3, 60, '#ffffff'); for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) rect(fx + 3 + c * 4, DR_GROUND - 60 + r * 4, 4, 4, (r + c) % 2 ? '#14141c' : '#ffffff'); }
+  for (const f of D.fx) rect(f.x, f.y, 2, 2, f.c);
+  drDrawDino(DR_X, DR_GROUND + D.y, D.anim, D.inv > 0 ? 0.55 : 1, D.air);
+  ctx.restore();
+  // Anzeige: Herzen, Münzen, Fortschritt
+  for (let k = 0; k < 3; k++) { const c = k < D.hp ? '#e8312f' : '#4a3a3a'; rect(8 + k * 12, 8, 4, 3, c); rect(12 + k * 12, 8, 4, 3, c); rect(8 + k * 12, 10, 8, 4, c); rect(10 + k * 12, 14, 4, 2, c); }
+  text(`MÜNZEN ${D.coins}`, VW - 8, 8, 8, '#ffd23f', 'right', '#000');
+  rect(120, 10, 144, 6, 'rgba(0,0,0,.4)'); rect(120, 10, Math.round(144 * clamp(D.dist / D.lv.len, 0, 1)), 6, '#6dd64a');
+  rect(120 + Math.round(144 * clamp(D.dist / D.lv.len, 0, 1)) - 2, 8, 4, 10, '#f08a1c');
+  text(`${Math.floor(D.dist / 10)} / ${D.lv.len / 10} M`, VW / 2, 20, 8, '#fff7e0', 'center', '#000');
+  if (D.msgT > 0 && D.msg) text(D.msg, VW / 2, 36, 8, '#ff8a6a', 'center', '#000');
+  if (D.phase === 'ready') centerPanel([[`DINO-RITT ${D.lvl + 1}: ${lv.name}`, 16, '#6dd64a'], ['', 8, '#fff'], ['LEERTASTE = SPRINGEN (HALTEN = HÖHER)', 8, '#fff7e0'], ['TIEFE FLUGSAURIER: DRÜBERSPRINGEN', 8, '#fff7e0'], ['HOHE FLUGSAURIER: UNTEN BLEIBEN!', 8, '#fff7e0'], ['', 8, '#fff'], ['LEERTASTE ODER KLICK = LOS!', 8, '#ffd23f']]);
+  if (D.phase === 'dead') centerPanel([['RUNTERGEFALLEN!', 16, '#ff5a4a'], ['', 8, '#fff'], [`DU HAST ${Math.round(D.dist / D.lv.len * 100)}% GESCHAFFT`, 8, '#fff7e0'], ['', 8, '#fff'], ['LEERTASTE = NOCHMAL · ESC = ZURÜCK', 8, '#ffd23f']]);
+  if (D.phase === 'win') centerPanel([['GESCHAFFT!', 16, '#6dd64a'], ['', 8, '#fff'], [`STERNE: ${'★'.repeat(D.stars)}${'☆'.repeat(3 - D.stars)}`, 8, '#ffd23f'], [`MÜNZEN ${D.coins} · +${D.coins + 10 * D.hp} IN DIE KASSE`, 8, '#fff7e0'], ['', 8, '#fff'], [D.lvl + 1 < DR_LV.length ? 'LEERTASTE = NÄCHSTES LEVEL' : 'LEERTASTE = ZURÜCK · ALLE RITTE GESCHAFFT!', 8, '#ffd23f']]);
+}
+function drawPart13() {
+  const S = G.p13 || {};
+  for (let i = 0; i < 14; i++) rect(0, i * VH / 14, VW, Math.ceil(VH / 14) + 1, lerpColor('#f0b860', '#fff0c0', i / 13));
+  for (let x = 0; x < VW; x += 2) { const h = 46 + 12 * Math.sin(x * 0.015); rect(x, 182 - h, 2, h, '#d8a060'); }
+  for (let k = 0; k < 4; k++) { const x = 40 + k * 100; rect(x, 150, 5, 32, '#6a9a4a'); rect(x - 5, 160, 5, 3, '#6a9a4a'); rect(x + 5, 166, 5, 3, '#6a9a4a'); }
+  rect(0, 182, VW, 42, '#d8b070'); rect(0, 182, VW, 3, '#e8c890');
+  const dx = ((G.t * 60) % (VW + 80)) - 40;                              // ein Dino rennt durchs Bild
+  drDrawDino(dx, 182 - Math.max(0, Math.sin(G.t * 3) * 18), G.t * 8, 1, Math.sin(G.t * 3) > 0);
+  text('KÜRBIS-ABENTEUER', VW / 2 + 1, 10, 16, '#f08a1c', 'center', '#3a1a05');
+  text('TEIL 13', VW / 2, 30, 16, '#6dd64a', 'center', '#1a3a10');
+  text('DER DINO-RITT', VW / 2, 48, 8, '#3a1a05', 'center', null);
+  const un = drUnlocked(), stars = store.drStars || {}, lock = S.lock && G.t - S.lock.t < 1.5 ? S.lock : null;
+  DR_BTNS.forEach((bt, i) => {
+    const open = i < un;
+    rect(bt.x, bt.y, bt.w, bt.h, open ? 'rgba(40,60,20,.92)' : 'rgba(40,36,30,.85)');
+    const e = open ? '#8ae05a' : '#5a5a48';
+    rect(bt.x, bt.y, bt.w, 1, e); rect(bt.x, bt.y + bt.h - 1, bt.w, 1, e); rect(bt.x, bt.y, 1, bt.h, e); rect(bt.x + bt.w - 1, bt.y, 1, bt.h, e);
+    text(String(i + 1), bt.x + bt.w / 2, bt.y + 2, 8, open ? '#ffffff' : '#7a7a68', 'center', null);
+    text(!open ? 'ZU' : stars[i] ? '★'.repeat(stars[i]) + '☆'.repeat(3 - stars[i]) : 'RITT', bt.x + bt.w / 2, bt.y + 12, 8, open ? '#ffd23f' : '#7a7a68', 'center', null);
+  });
+  if (lock) text(`ERST RITT ${lock.i} SCHAFFEN!`, VW / 2, 94, 8, '#c8202a', 'center', '#000');
+  else text('KLICK ODER 1-5 = RITT STARTEN', VW / 2, 94, 8, '#3a1a05', 'center', null);
+  text('LEERTASTE = SPRINGEN · ÜBER ALLE HINDERNISSE!', VW / 2, 106, 8, '#3a1a05', 'center', null);
+  drawPortal(PORTAL_BTN, '12', 'TEIL 12');
+  text('PORTAL = TEIL 12 · H = TEIL 1', VW / 2, 212, 8, '#fff7e0', 'center', '#000');
+}
+function drawDRDoor() {                                                   // Dino-Fußabdruck „13“ auf der Teil-12-Seite
+  const b = DR_DOOR, cx = b.x + b.w / 2;
+  rect(cx - 12, b.y + 16, 24, 22, '#5a3a1e'); rect(cx - 10, b.y + 14, 20, 26, '#5a3a1e');
+  rect(cx - 14, b.y + 4, 7, 10, '#5a3a1e'); rect(cx - 3, b.y, 7, 12, '#5a3a1e'); rect(cx + 8, b.y + 4, 7, 10, '#5a3a1e');
+  text('13', cx + 1, b.y + 22, 8, '#ffd23f', 'center', null);
+  text('TEIL 13', cx, b.y + b.h + 2, 8, '#ffd23f', 'center', '#000');
 }
 // ============================================================ Teil 11: Kürbis-Cartoon (inspiriert von Cuphead)
 // Alter Zeichentrick-Stil aus den 1930ern: du schießt mit Kürbiskernen (E halten), springst in der Luft auf Pinkes (Parry),
