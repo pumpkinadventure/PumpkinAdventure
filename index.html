@@ -1282,6 +1282,15 @@ const spaceUnlocked = () => storeOK ? clamp(store.spaceUnlocked || 1, 1, SPACE_L
 const lvCount = () => G.mode === 'space' ? worldLevels().length : LEVELS.length;
 const JET_TIMES = [0, 1.5, 3, 5], JET_PRICES = [250, 500, 1000];   // Flugzeit je Stufe; Preis für Kauf, 1. und 2. Upgrade
 const jetLevel = () => clamp(store.jetLevel || 0, 0, 3);
+// Shop-Extras: gelten wie das Jetpack in allen Teilen mit normalen Leveln (nicht im Rollentausch)
+const SHOP_ITEMS = [
+  { id: 'herz', name: 'EXTRA-HERZ', what: '6 STATT 5 LEBEN IN JEDEM LEVEL', price: 300 },
+  { id: 'magnet', name: 'MÜNZ-MAGNET', what: 'MÜNZEN IN DER NÄHE FLIEGEN ZU DIR', price: 400 },
+  { id: 'doppel', name: 'DOPPELSPRUNG', what: 'IN DER LUFT NOCHMAL SPRINGEN', price: 600 },
+  { id: 'schild', name: 'SCHUTZSCHILD', what: 'DER 1. TREFFER IM LEVEL ZÄHLT NICHT', price: 800 },
+  { id: 'krone', name: 'GOLDKRONE', what: 'EINE KRONE FÜR DEINEN KÜRBIS', price: 1500 },
+];
+const hasItem = id => G.mode !== 'versus' && !!(store.items || {})[id];
 const wallet = () => store.wallet || 0;
 const gravK = () => G.mode === 'space' && G.world !== 5 && G.world !== 7 && G.world !== 8 && G.world !== 9 && G.world !== 10 && G.world !== 11 ? 0.42 : 1;            // im Weltraum fällt alles viel langsamer
 const maxFall = () => G.mode === 'space' && G.world !== 5 && G.world !== 7 && G.world !== 8 && G.world !== 9 && G.world !== 10 && G.world !== 11 ? 4.2 : MAXFALL;
@@ -1590,7 +1599,8 @@ function loadLevel(def, b) {
   P.y = floorY(3) - P.h;
   // gekauftes Jetpack ist in jedem Level dabei (Teil 1, 3 und 4) – nur nicht im Rollentausch, da steuert der Computer den Kürbis
   if (jetLevel() > 0 && G.mode !== 'versus') { P.jet = true; P.fuelMax = P.fuel = JET_TIMES[jetLevel()]; L.jetItem = null; }
-  P.maxHp = P.hp = G.mode === 'dragon' ? 15 : (G.mode === 'rush' || G.mode === 'giant') ? 10 : MAXHP;
+  P.maxHp = P.hp = (G.mode === 'dragon' ? 15 : (G.mode === 'rush' || G.mode === 'giant') ? 10 : MAXHP) + (hasItem('herz') ? 1 : 0);
+  P.shield = hasItem('schild'); P.dj = true;
   G.superMeter = 0; G.superT = 0; G.strobe = 0; G.fog = 0; G.pw = []; G.hitMod = null;
   if (def.startCol) { P.x = def.startCol * T + 2; P.y = floorY(def.startCol) - P.h; }
   // Endgegner kommen in Gruppen nacheinander; eine Gruppe = 1 Endgegner (normal) oder 2 gleichzeitig (Hardcore)
@@ -1842,6 +1852,7 @@ function hurt(srcX, why, dmg = 1) {
   if (P.block && isFight() && Math.sign(srcX - (P.x + P.w / 2)) === P.face) {   // von vorne geblockt
     P.vx = -P.face * 1.6; P.dodge = 0.4; pop(P.x - 14, P.y - 22, 'GEBLOCKT!', '#9ad0ff', 0.7); SFX.bump(); return;
   }
+  if (P.shield) { P.shield = false; P.inv = 1.2; pop(P.x - 16, P.y - 22, 'SCHILD WEG!', '#9ad0ff', 1); tone(900, 400, 0.2, 'triangle', 0.05); return; }   // Schutzschild fängt den ersten Treffer ab
   P.hp = Math.max(0, P.hp - dmg); P.inv = INV_TIME; P.hurtT = 0.25;
   if (dmg > 1) pop(P.x - 6, P.y - 22, `-${dmg} LEBEN!`, '#ff5a4a', 1.2);
   P.vx = (P.x + P.w / 2 < srcX ? -2.4 : 2.4); P.vy = -3.2;
@@ -1936,6 +1947,12 @@ function updatePlayer() {
     else if (K.right && !K.left) { P.vx += acc; P.face = 1; }
     else { const fr = P.onGround ? 0.16 : 0.04; P.vx = P.vx > 0 ? Math.max(0, P.vx - fr) : Math.min(0, P.vx + fr); }
     if (Math.abs(P.vx) > maxv) P.vx = Math.sign(P.vx) * Math.max(maxv, Math.abs(P.vx) - 0.1);
+  }
+  // Doppelsprung aus dem Shop: in der Luft einmal nochmal springen (danach kommt erst das Jetpack)
+  if (P.onGround) P.dj = true;
+  else if (pressed.jump && P.coyote <= 0 && P.dj && hasItem('doppel') && !P.jetOn) {
+    P.vy = -JUMP * 0.85; P.dj = false; pressed.jump = false; P.jumpBuf = 0; SFX.jump();
+    burst(P.x + P.w / 2, P.y + P.h, ['#ffffff', '#fff3b0'], 6, 1.2);
   }
   // Jetpack: in der Luft nochmal springen und halten = fliegen (Tank reicht 3 Sekunden, füllt sich am Boden wieder)
   if (P.jet) {
@@ -2032,6 +2049,7 @@ function updatePlayer() {
     pop(P.x - 70, P.y - 22, 'IN DER LUFT NOCHMAL SPRINGEN + HALTEN', '#9ad0ff', 3.2);
   }
   // Münzen
+  if (hasItem('magnet')) for (const c of L.coins) if (!c.taken) { const dx = P.x + P.w / 2 - (c.x + 3), dy = P.y + P.h / 2 - (c.y + 4); if (dx * dx + dy * dy < 56 * 56) { c.x += dx * 0.12; c.y += dy * 0.12; } }   // Münz-Magnet
   for (const c of L.coins) if (!c.taken && overlap(P, c)) { c.taken = true; G.coins++; G.st.coins++; G.score += 10; SFX.coin(); burst(c.x + 3, c.y + 4, ['#ffd23f', '#fff3b0'], 5, 1.2); }
 
   if (P.y > L.rows * T + 8) die(L.def.water ? (L.def.hw ? 'Ins Meer gefallen!' : 'In den Billekanal gefallen!') : 'In die Grube gefallen!');
@@ -4117,7 +4135,7 @@ function step() {
       updatePart4();
       if (G.space && G.space.shop) {
         if (pressed.esc || pressed.build) G.space.shop = false;
-        else if (pressed.enter) buyJet();
+        else shopKeys();
         break;
       }
       if (pressed.build) { G.space.shop = true; SFX.bump(); break; }
@@ -4402,6 +4420,7 @@ function drawPlayer() {
       if (P.jetOn) { const fl = Math.floor(G.t * 20) % 2; lpx(sx, oy, 16, P.face, -1, 18, 3, 3 + fl * 2, '#ffe14a'); lpx(sx, oy, 16, P.face, 0, 18, 1, 5 + fl * 2, '#ffffff'); }
     }
     drawSprite(SPR_PLAYER[frame], ox, oy, P.face, false);
+    if (hasItem('krone') && G.mode !== 'dragon') { const sx = Math.round(ox - camX); lpx(sx, oy, 16, P.face, 4, -3, 9, 3, '#ffd23f'); lpx(sx, oy, 16, P.face, 4, -6, 2, 3, '#ffd23f'); lpx(sx, oy, 16, P.face, 7, -7, 3, 4, '#ffd23f'); lpx(sx, oy, 16, P.face, 11, -6, 2, 3, '#ffd23f'); lpx(sx, oy, 16, P.face, 8, -2, 1, 1, '#e8312f'); }   // Goldkrone
     if (G.mode === 'space' && G.world !== 7 && G.world !== 8 && G.world !== 9 && G.world !== 10 && G.world !== 11) drawSpaceHelmet(ox - camX, oy);
     if (P.punchT > 0) {
       const ext = P.punchT > 0.08 ? 7 : 4, sx = Math.round(ox - camX);
@@ -4419,7 +4438,8 @@ function drawPlayer() {
     }
     if (G.bow && P.bowCd > 0.25) lpx(Math.round(ox - camX), oy, 16, P.face, 15, G.superT > 0 ? 1 : 6, G.superT > 0 ? 3 : 2, G.superT > 0 ? 20 : 10, '#8b5a2b');
   }
-  if (!P.dead) text((G.mode === 'versus' ? 'KÜRBIS' : G.name).toUpperCase(), P.x + P.w / 2 - camX, P.y - 11, 8, '#ffffff', 'center', '#1a0d05');
+  if (P.shield && !P.dead) { ctx.globalAlpha = 0.22; ctx.fillStyle = '#9ad0ff'; ctx.beginPath(); ctx.arc(P.x + P.w / 2 - camX, P.y + P.h / 2, 15, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 0.6; ctx.strokeStyle = '#cfe8ff'; ctx.lineWidth = 1; ctx.stroke(); ctx.globalAlpha = 1; }   // Schutzschild (ruhige Blase)
+  if (!P.dead) text((G.mode === 'versus' ? 'KÜRBIS' : G.name).toUpperCase(), P.x + P.w / 2 - camX, P.y - (hasItem('krone') ? 15 : 11), 8, '#ffffff', 'center', '#1a0d05');
 }
 function drawEnemies() {
   for (const e of enemies) {
@@ -6338,7 +6358,9 @@ function drawSpaceBtns() {
   else if (Math.floor(G.t * 1.5) % 2 === 0) text('KLICK ODER 1-9, 0 = LEVEL STARTEN', VW / 2, 112, 8, '#c9a0ff', 'center', '#000');
 }
 // ---------- Jetpack-Shop
-const SHOP_BTN = { x: 6, y: 70, w: 46, h: 22 }, SHOP_BOX = { x: 62, y: 28, w: 260, h: 176 }, SHOP_BUY = { x: 132, y: 166, w: 120, h: 16 }, SHOP_X = { x: 304, y: 30, w: 16, h: 14 };
+const SHOP_BTN = { x: 6, y: 70, w: 46, h: 22 }, SHOP_BOX = { x: 62, y: 28, w: 260, h: 176 }, SHOP_BUY = { x: 132, y: 186, w: 120, h: 14 }, SHOP_X = { x: 304, y: 30, w: 16, h: 14 };
+const SHOP_TABS = [{ x: 72, y: 50, w: 116, h: 13 }, { x: 196, y: 50, w: 116, h: 13 }];
+const shopRow = i => ({ x: 70, y: 78 + i * 19, w: 244, h: 17 });
 function buyJet() {
   const lv = jetLevel(), S4 = G.space;
   if (lv >= 3) { S4.msg = { text: 'DEIN JETPACK IST SCHON MAXIMAL!', c: '#9ad0ff', t: G.t }; SFX.bump(); return; }
@@ -6348,8 +6370,28 @@ function buyJet() {
   S4.msg = { text: lv === 0 ? 'GEKAUFT! VIEL SPASS BEIM FLIEGEN!' : `UPGRADE! JETZT ${String(JET_TIMES[lv + 1]).replace('.', ',')} SEK. FLUG!`, c: '#6dd64a', t: G.t };
   [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, f, 0.1, 'square', 0.05, i * 0.06)); SFX.coin();
 }
+function buyItem(i) {                                                  // Extras aus dem Shop kaufen
+  const it = SHOP_ITEMS[i], S4 = G.space; if (!it) return;
+  store.items = store.items || {};
+  if (store.items[it.id]) { S4.msg = { text: 'HAST DU SCHON!', c: '#9ad0ff', t: G.t }; SFX.bump(); return; }
+  if (wallet() < it.price) { S4.msg = { text: `DIR FEHLEN NOCH ${it.price - wallet()} MÜNZEN`, c: '#ff8a6a', t: G.t }; SFX.bump(); return; }
+  store.wallet = wallet() - it.price; store.items[it.id] = true; saveStore();
+  S4.msg = { text: `${it.name} GEKAUFT!`, c: '#6dd64a', t: G.t };
+  [523, 659, 784, 1047, 1319].forEach((f, k) => tone(f, f, 0.1, 'square', 0.05, k * 0.06)); SFX.coin();
+}
+function shopBuy() { const S4 = G.space; if (S4.tab === 1) buyItem(S4.sel || 0); else buyJet(); }
+function shopKeys() {                                                   // A/D = Reiter wechseln, W/S = Sache wählen, Enter = kaufen
+  const S4 = G.space;
+  if (pressed.left) S4.tab = 0;
+  if (pressed.right) S4.tab = 1;
+  if (S4.tab === 1) { if (pressed.down) S4.sel = Math.min(SHOP_ITEMS.length - 1, (S4.sel || 0) + 1); if (pressed.jump) S4.sel = Math.max(0, (S4.sel || 0) - 1); }
+  if (pressed.enter) shopBuy();
+}
 function shopClick(pt) {
-  if (inBox(pt, SHOP_BUY)) buyJet();
+  const S4 = G.space;
+  const ti = SHOP_TABS.findIndex(b => inBox(pt, b)); if (ti >= 0) { S4.tab = ti; SFX.bump(); return; }
+  if (S4.tab === 1) { const ri = SHOP_ITEMS.findIndex((it, i) => inBox(pt, shopRow(i))); if (ri >= 0) { S4.sel = ri; return; } }
+  if (inBox(pt, SHOP_BUY)) shopBuy();
   else if (inBox(pt, SHOP_X) || !inBox(pt, SHOP_BOX)) G.space.shop = false;
 }
 function drawJetIcon(x, y, s = 1) {
@@ -6366,31 +6408,44 @@ function drawShopBtn() {
   text('B = SHOP', b.x + b.w / 2, b.y + b.h + 2, 8, '#b5a5bf', 'center', '#000');
 }
 function drawShop() {
-  const B = SHOP_BOX, lv = jetLevel(), S4 = G.space;
+  const B = SHOP_BOX, lv = jetLevel(), S4 = G.space, tab = S4.tab || 0, items = store.items || {};
   rect(0, 0, VW, VH, 'rgba(5,3,14,.6)');
   panel(B.x, B.y, B.w, B.h);
-  text('JETPACK-SHOP', B.x + B.w / 2, B.y + 6, 16, '#ffd23f', 'center', '#3a1a05');
+  text('SHOP', B.x + B.w / 2, B.y + 4, 16, '#ffd23f', 'center', '#3a1a05');
   rect(SHOP_X.x, SHOP_X.y, SHOP_X.w, SHOP_X.h, '#5a2a2a'); text('X', SHOP_X.x + 8, SHOP_X.y + 3, 8, '#ffffff', 'center', null);
-  ctx.drawImage(SPR_COIN, B.x + 10, B.y + 30); text(`DEINE MÜNZEN: ${wallet()}`, B.x + 20, B.y + 30, 8, '#fff7e0', 'left', null);
-  drawJetIcon(B.x + 214, B.y + 28, 2);
-  const rows = [['JETPACK', '1,5 SEK. FLIEGEN', JET_PRICES[0]], ['UPGRADE 1', '3 SEK. FLIEGEN', JET_PRICES[1]], ['UPGRADE 2', '5 SEK. FLIEGEN', JET_PRICES[2]]];
-  rows.forEach(([name, what, price], i) => {
-    const yy = B.y + 50 + i * 24, owned = lv > i, next = lv === i;
-    rect(B.x + 8, yy, B.w - 16, 20, owned ? 'rgba(40,90,40,.5)' : next ? 'rgba(60,40,110,.6)' : 'rgba(40,30,50,.5)');
-    text(name, B.x + 14, yy + 2, 8, owned ? '#6dd64a' : next ? '#ffffff' : '#7a7088', 'left', null);
-    text(what, B.x + 14, yy + 11, 8, owned ? '#a8e89a' : next ? '#9ad0ff' : '#6a6278', 'left', null);
-    if (owned) text('GEKAUFT', B.x + B.w - 14, yy + 6, 8, '#6dd64a', 'right', null);
-    else { ctx.drawImage(SPR_COIN, B.x + B.w - 60, yy + 6); text(String(price), B.x + B.w - 14, yy + 6, 8, next ? (wallet() >= price ? '#ffd23f' : '#ff8a6a') : '#6a6278', 'right', null); }
-  });
-  const can = lv < 3 && wallet() >= JET_PRICES[lv];
-  if (lv < 3) {
-    rect(SHOP_BUY.x, SHOP_BUY.y, SHOP_BUY.w, SHOP_BUY.h, can ? '#2f6e22' : '#4a3a4a');
-    text(lv === 0 ? 'KAUFEN (ENTER)' : 'UPGRADEN (ENTER)', SHOP_BUY.x + SHOP_BUY.w / 2, SHOP_BUY.y + 4, 8, can ? '#ffffff' : '#a898a8', 'center', null);
+  SHOP_TABS.forEach((b, k) => { rect(b.x, b.y, b.w, b.h, tab === k ? '#5a3a8a' : 'rgba(40,30,50,.8)'); rect(b.x, b.y + b.h - 1, b.w, 1, tab === k ? '#ffd23f' : '#3a2a4a'); text(k ? 'EXTRAS' : 'JETPACK', b.x + b.w / 2, b.y + 3, 8, tab === k ? '#ffffff' : '#9a90a8', 'center', null); });
+  ctx.drawImage(SPR_COIN, B.x + 10, B.y + 38); text(`DEINE MÜNZEN: ${wallet()}`, B.x + 20, B.y + 38, 8, '#fff7e0', 'left', null);
+  let can = false, buyText = '', done = false;
+  if (tab === 0) {
+    drawJetIcon(B.x + 228, B.y + 36, 1);
+    const rows = [['JETPACK', '1,5 SEK. FLIEGEN', JET_PRICES[0]], ['UPGRADE 1', '3 SEK. FLIEGEN', JET_PRICES[1]], ['UPGRADE 2', '5 SEK. FLIEGEN', JET_PRICES[2]]];
+    rows.forEach(([name, what, price], i) => {
+      const yy = B.y + 52 + i * 24, owned = lv > i, next = lv === i;
+      rect(B.x + 8, yy, B.w - 16, 20, owned ? 'rgba(40,90,40,.5)' : next ? 'rgba(60,40,110,.6)' : 'rgba(40,30,50,.5)');
+      text(name, B.x + 14, yy + 2, 8, owned ? '#6dd64a' : next ? '#ffffff' : '#7a7088', 'left', null);
+      text(what, B.x + 14, yy + 11, 8, owned ? '#a8e89a' : next ? '#9ad0ff' : '#6a6278', 'left', null);
+      if (owned) text('GEKAUFT', B.x + B.w - 14, yy + 6, 8, '#6dd64a', 'right', null);
+      else { ctx.drawImage(SPR_COIN, B.x + B.w - 60, yy + 6); text(String(price), B.x + B.w - 14, yy + 6, 8, next ? (wallet() >= price ? '#ffd23f' : '#ff8a6a') : '#6a6278', 'right', null); }
+    });
+    can = lv < 3 && wallet() >= JET_PRICES[lv]; done = lv >= 3; buyText = lv === 0 ? 'KAUFEN (ENTER)' : 'UPGRADEN (ENTER)';
+  } else {
+    const sel = S4.sel || 0;
+    SHOP_ITEMS.forEach((it, i) => {
+      const r = shopRow(i), owned = !!items[it.id], on = sel === i;
+      rect(r.x, r.y, r.w, r.h, owned ? 'rgba(40,90,40,.5)' : on ? 'rgba(60,40,110,.75)' : 'rgba(40,30,50,.5)');
+      if (on) { rect(r.x, r.y, 2, r.h, '#ffd23f'); }
+      text(it.name, r.x + 6, r.y + 1, 8, owned ? '#6dd64a' : on ? '#ffffff' : '#c8c0d8', 'left', null);
+      text(it.what, r.x + 6, r.y + 9, 8, owned ? '#a8e89a' : on ? '#9ad0ff' : '#8a8298', 'left', null);
+      if (owned) text('GEKAUFT', r.x + r.w - 4, r.y + 5, 8, '#6dd64a', 'right', null);
+      else { ctx.drawImage(SPR_COIN, r.x + r.w - 42, r.y + 5); text(String(it.price), r.x + r.w - 4, r.y + 5, 8, wallet() >= it.price ? '#ffd23f' : '#ff8a6a', 'right', null); }
+    });
+    const it = SHOP_ITEMS[sel]; done = !!items[it.id]; can = !done && wallet() >= it.price; buyText = 'KAUFEN (ENTER)';
   }
   const msg = S4.msg && G.t - S4.msg.t < 2.5 ? S4.msg : null;
-  if (msg) text(msg.text, B.x + B.w / 2, B.y + 125, 8, msg.c, 'center', null);
-  else text(lv > 0 ? 'IN DER LUFT NOCHMAL SPRINGEN + HALTEN' : 'MÜNZEN GIBT ES FÜR JEDES GESCHAFFTE LEVEL', B.x + B.w / 2, B.y + 125, 8, '#b5a5bf', 'center', null);
-  if (lv >= 3) text('DEIN JETPACK IST VOLL AUSGEBAUT!', B.x + B.w / 2, SHOP_BUY.y + 4, 8, '#6dd64a', 'center', null);
+  if (msg) text(msg.text, B.x + B.w / 2, B.y + 150, 8, msg.c, 'center', null);
+  else text(tab === 0 ? (lv > 0 ? 'IN DER LUFT NOCHMAL SPRINGEN + HALTEN' : 'MÜNZEN GIBT ES FÜR JEDES GESCHAFFTE LEVEL') : 'A/D = REITER · W/S = WÄHLEN · KLICK GEHT AUCH', B.x + B.w / 2, B.y + 150, 8, '#b5a5bf', 'center', null);
+  if (done) text(tab === 0 ? 'DEIN JETPACK IST VOLL AUSGEBAUT!' : 'SCHON GEKAUFT!', B.x + B.w / 2, SHOP_BUY.y + 3, 8, '#6dd64a', 'center', null);
+  else { rect(SHOP_BUY.x, SHOP_BUY.y, SHOP_BUY.w, SHOP_BUY.h, can ? '#2f6e22' : '#4a3a4a'); text(buyText, SHOP_BUY.x + SHOP_BUY.w / 2, SHOP_BUY.y + 3, 8, can ? '#ffffff' : '#a898a8', 'center', null); }
 }
 // ---------- Teil 5: auf dem Saturn (Inhalt folgt noch)
 const SATURN_BTN = { x: 292, y: 136, w: 92, h: 80 };
