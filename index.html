@@ -598,6 +598,7 @@ const THEMES = [
   { sky: ['#0a0618', '#2a1040'], far: '#1a1028', near: '#241430', grass: '#3a5a2a', grassD: '#24401c', dirt: '#3a2a24', dirtD: '#2a1e1a', brick: '#4a3a5a', mortar: '#2a1e38', decor: 'jack' },   // Halloween (Teil 8)
   { sky: ['#5fb8f5', '#cfefff'], far: '#9ab8c8', near: '#7a98a8', grass: '#4caf50', grassD: '#2e7d32', dirt: '#7a6a5a', dirtD: '#5a4a3e', brick: '#a8a8b0', mortar: '#6a6a78', decor: 'studs' },   // Kampfarena (Teil 10)
   { sky: ['#6ac0a0', '#e0f4c8'], far: '#5a9a6a', near: '#3a7a4a', grass: '#5aaa3a', grassD: '#3a7a24', dirt: '#8a5a32', dirtD: '#6a4222', brick: '#7a6a5a', mortar: '#4a3a2a', decor: 'fern' },   // Dino-Insel (Teil 12)
+  { sky: ['#2a8ab8', '#0a2a4a'], far: '#1a4a5a', near: '#0a3a4a', grass: '#e8d8a0', grassD: '#c8b880', dirt: '#c8a870', dirtD: '#a88850', brick: '#c86a5a', mortar: '#8a3a2a', decor: 'coral' },   // Tiefsee (Teil 14)
 ];
 function buildTiles(th) {
   const ground = top => drawn(16, 16, f => {
@@ -764,6 +765,8 @@ const BOSS_INFO = {
   giant: { name: 'RIESENKÜRBIS', hint: 'STEINE, ZOMBIES, WELLEN, LIBELLEN!|LIBELLEN: BOGEN (Q). BAUCH: SCHLAGEN!' },
   dog: { name: 'EIS-HUND', hint: 'ALLE 10 SEK. RENNT ER LOS: SPRINGEN!|NACH DEM AUFPRALL: SCHLAGEN!' },
   trike: { name: 'TRI-TOPS', hint: 'STAMPFT ER: ÜBER DIE WELLE SPRINGEN!|FELSBROCKEN: DRÜBER SPRINGEN!|ANSTURM: SPRING ÜBER IHN!|KRACHT ER GEGEN DIE WAND: SCHLAG ZU!' },
+  crab: { name: 'KRABBEN-KÖNIG', hint: 'STAMPFT ER: ÜBER DIE WELLE SCHWIMMEN!|MUSCHELN: AUSWEICHEN!|ANSTURM: SCHWIMM ÜBER IHN!|KRACHT ER GEGEN DIE WAND: SCHLAG ZU!' },
+  octo: { name: 'KRAKE OLGA', hint: 'STAMPFT SIE: ÜBER DIE WELLE SCHWIMMEN!|SINKENDE STEINE: ROTER BODEN!|ANSTURM: SCHWIMM ÜBER SIE!|KRACHT SIE GEGEN DIE WAND: SCHLAG ZU!' },
   rex: { name: 'KÖNIG REX', hint: 'STAMPFT ER: ÜBER DIE WELLE SPRINGEN!|BRÜLLT ER: ROTER BODEN = STEIN KOMMT!|ANSTURM: SPRING ÜBER IHN!|KRACHT ER GEGEN DIE WAND: SCHLAG ZU!' },
   bull: { name: 'BULLE BRUNO', hint: 'STAMPFT ER: ÜBER DIE WELLE SPRINGEN!|HEUBALLEN: DRÜBER SPRINGEN!|ANSTURM: SPRING ÜBER IHN!|KRACHT ER GEGEN DIE WAND: SCHLAG ZU!' },
   champ: { name: 'DER CHAMPION', hint: 'SERIENSCHLÄGE: BLOCKEN (S) ODER DASHEN (Q)!|ERNSTER SCHLAG: ÜBER DIE WELLE SPRINGEN!|BLOCKT ER: UPPERCUT (2) ODER SCHUBSER (3)!|NACH SEINEN ANGRIFFEN: VOLL DRAUF!' },
@@ -1211,6 +1214,52 @@ function playDino(i) {
   G.score = 0; G.coins = 0; G.world = 11;
   startSpaceLevel(i);
 }
+// ---------- Teil 14: Die Tiefsee (Schwimmen: Leertaste immer wieder drücken = nach oben paddeln)
+const SEA_NAMES = ['Korallenriff', 'Seegraswald', 'Schiffswrack', 'Dunkle Grotte', 'Krabben-König', 'Quallen-Garten', 'Leuchtfisch-Tiefe', 'Versunkene Stadt', 'Tiefseegraben', 'Krake Olga'];
+const SEA_INFO = [
+  ['AB INS WASSER! DU KANNST SCHWIMMEN!', 'LEERTASTE IMMER WIEDER DRÜCKEN = NACH OBEN'],
+  ['IM SEEGRASWALD', 'KRABBEN NEHMEN ANLAUF – SCHWIMM DRÜBER!'],
+  ['DAS ALTE SCHIFFSWRACK', 'SAMMLE DIE PERLEN!'],
+  ['LICHT AUS! IN DER GROTTE IST ES DUNKEL', 'DEINE LATERNE LEUCHTET DIR DEN WEG!'],
+  ['AM GROSSEN FELSEN', 'DER KRABBEN-KÖNIG WARTET!'],
+  ['IM QUALLEN-GARTEN', 'KUGELFISCHE FLITZEN HERUM!'],
+  ['GANZ TIEF UNTEN WIRD ES DUNKEL', 'NUR DIE LEUCHTFISCHE LEUCHTEN!'],
+  ['DIE VERSUNKENE STADT', 'SÄULEN, TEMPEL UND SCHÄTZE!'],
+  ['DER TIEFSEEGRABEN', 'STEINE SINKEN VON OBEN – ROTER BODEN!'],
+  ['IN DER HÖHLE DER KRAKE', 'KRAKE OLGA WARTET!']];
+// Fisch (stürzt sich herab), Krabbe (nimmt Anlauf), Hummer (wirft Muscheln), Seepferdchen (hüpft), Kugelfisch (flitzt dir nach)
+const SEA_TYPES = ['hbat', 'cow', 'skel', 'sheep', 'pump'];
+const SEA_MIX = [[0.35, 0.2, 0, 0.25, 0.2], [0.25, 0.35, 0.1, 0.1, 0.2], [0.3, 0.2, 0.3, 0, 0.2], [0.3, 0.3, 0.2, 0, 0.2], null,
+  [0.2, 0.15, 0.15, 0.2, 0.3], [0.35, 0.25, 0.2, 0, 0.2], [0.25, 0.25, 0.25, 0.1, 0.15], [0.3, 0.25, 0.25, 0.1, 0.1], null];
+const SEA_MSG = { hbat: 'Ein Fisch hat dich angestupst!', cow: 'Eine Krabbe hat dich gezwickt!', skel: 'Der Hummer hat dich erwischt!', sheep: 'Ein Seepferdchen hat dich angerempelt!', pump: 'Ein Kugelfisch hat dich gepikst!' };
+const isSea = () => G.mode === 'space' && G.world === 12;
+function seaGenerate(b, i, boss) {
+  const R = mulberry32(i * 8231 + 71);
+  if (boss) { b.ground(0, 23); b.col(0, 11, 12); b.col(23, 11, 12); b.arenaCol = 0; b.trim(24); return; }   // Arena mit Wänden für den Ansturm
+  b.ground(0, 13);
+  const res = makeChunks(b, R, 0.35 + i * 0.09, 14, 12, 150 + i * 20), x = res.x;
+  b.ground(x, x + 21, 12); b.stairs(x + 4, 4); b.goal = x + 13; b.trim(x + 22);
+  const spots = res.spots.filter(c => c > 16 && c < x + 2).sort((a, c) => a - c), chosen = [];
+  for (const c of spots) if (!chosen.length || c - chosen[chosen.length - 1] >= 3) chosen.push(c);
+  while (chosen.length > Math.min(18, 10 + i * 2)) chosen.splice(Math.floor(R() * chosen.length), 1);
+  const mix = SEA_MIX[i];
+  chosen.forEach(c => { let r = R(), k = 0; while (k < mix.length - 1 && r >= mix[k]) r -= mix[k++]; b.enemies.push([SEA_TYPES[k], c]); });
+  if (i === 2) for (let k = 0; k < 10; k++) b.coin(24 + k * 12, 6, 2);   // im Schiffswrack: extra viele Perlen
+  b.sign(2, 3, SEA_INFO[i][0]); b.sign(2, 4, SEA_INFO[i][1]);
+}
+const SEA_LEVELS = SEA_NAMES.map((name, i) => ({
+  name, theme: 11, space: true, sea: true, boss: i === 4 ? 'crab' : i === 9 ? 'octo' : null, dark: i === 3 || i === 6 || i === 8,
+  bg: ['reef', 'kelp', 'wreck', 'grotto', 'reef', 'jelly', 'deep', 'city', 'deep', 'grotto'][i],
+  rockEvery: i === 8 ? 2.2 : 99, pigCd: [2.6, 2.4, 2.3, 2.2, 2.0, 2.2, 2.2, 2.1, 2.0, 2.0][i],
+  build(b) { seaGenerate(b, i, !!this.boss); },
+}));
+const seaUnlocked = () => storeOK ? clamp(store.seaUnlocked || 1, 1, SEA_LEVELS.length) : SEA_LEVELS.length;
+function playSea(i) {
+  if (i >= seaUnlocked()) { SFX.bump(); if (G.p14) G.p14.lock = { i, t: G.t }; return; }
+  G.name = store.name || G.name || 'Kürbis';
+  G.score = 0; G.coins = 0; G.world = 12;
+  startSpaceLevel(i);
+}
 // ---------- Teil 10: Kampfarena (inspiriert von Roblox „The Strongest Battlegrounds“)
 const FT_NAMES = ['Trainingsplatz', 'Stadt-Schlachtfeld', 'Ruinen', 'Wellen-Arena', 'Der Champion'];
 const FT_INFO = [
@@ -1274,9 +1323,9 @@ function fightWaves() {
   W.n++; W.t = 2;
   pop(P.x - 20, P.y - 30, `WELLE ${W.n}/${FT_WAVES.length}!`, '#ffd23f', 1.4); SFX.boss();
 }
-const worldLevels = () => G.world === 11 ? DINO_LEVELS : G.world === 10 ? FT_LEVELS : G.world === 9 ? HW_LEVELS : G.world === 8 ? RMH_LEVELS : G.world === 7 ? SUDPOL_LEVELS : G.world === 5 ? SATURN_LEVELS : SPACE_LEVELS;
-const unlockKey = () => G.world === 11 ? 'dinoUnlocked' : G.world === 10 ? 'ftUnlocked' : G.world === 9 ? 'hwUnlocked' : G.world === 8 ? 'rmhUnlocked' : G.world === 7 ? 'sudpolUnlocked' : G.world === 5 ? 'saturnUnlocked' : 'spaceUnlocked';
-const worldName = () => G.world === 11 ? 'DINO-INSEL' : G.world === 10 ? 'KAMPFARENA' : G.world === 9 ? 'HALLOWEEN' : G.world === 8 ? 'MARKTHALLE' : G.world === 7 ? 'SÜDPOL' : G.world === 5 ? 'SATURN' : 'WELTRAUM';
+const worldLevels = () => G.world === 12 ? SEA_LEVELS : G.world === 11 ? DINO_LEVELS : G.world === 10 ? FT_LEVELS : G.world === 9 ? HW_LEVELS : G.world === 8 ? RMH_LEVELS : G.world === 7 ? SUDPOL_LEVELS : G.world === 5 ? SATURN_LEVELS : SPACE_LEVELS;
+const unlockKey = () => G.world === 12 ? 'seaUnlocked' : G.world === 11 ? 'dinoUnlocked' : G.world === 10 ? 'ftUnlocked' : G.world === 9 ? 'hwUnlocked' : G.world === 8 ? 'rmhUnlocked' : G.world === 7 ? 'sudpolUnlocked' : G.world === 5 ? 'saturnUnlocked' : 'spaceUnlocked';
+const worldName = () => G.world === 12 ? 'TIEFSEE' : G.world === 11 ? 'DINO-INSEL' : G.world === 10 ? 'KAMPFARENA' : G.world === 9 ? 'HALLOWEEN' : G.world === 8 ? 'MARKTHALLE' : G.world === 7 ? 'SÜDPOL' : G.world === 5 ? 'SATURN' : 'WELTRAUM';
 const saturnUnlocked = () => storeOK ? clamp(store.saturnUnlocked || 1, 1, SATURN_LEVELS.length) : SATURN_LEVELS.length;
 const spaceUnlocked = () => storeOK ? clamp(store.spaceUnlocked || 1, 1, SPACE_LEVELS.length) : SPACE_LEVELS.length;
 const lvCount = () => G.mode === 'space' ? worldLevels().length : LEVELS.length;
@@ -1292,8 +1341,8 @@ const SHOP_ITEMS = [
 ];
 const hasItem = id => G.mode !== 'versus' && !!(store.items || {})[id];
 const wallet = () => store.wallet || 0;
-const gravK = () => G.mode === 'space' && G.world !== 5 && G.world !== 7 && G.world !== 8 && G.world !== 9 && G.world !== 10 && G.world !== 11 ? 0.42 : 1;            // im Weltraum fällt alles viel langsamer
-const maxFall = () => G.mode === 'space' && G.world !== 5 && G.world !== 7 && G.world !== 8 && G.world !== 9 && G.world !== 10 && G.world !== 11 ? 4.2 : MAXFALL;
+const gravK = () => G.mode === 'space' && G.world === 12 ? 0.3 : G.mode === 'space' && G.world !== 5 && G.world !== 7 && G.world !== 8 && G.world !== 9 && G.world !== 10 && G.world !== 11 ? 0.42 : 1;            // im Weltraum fällt alles viel langsamer
+const maxFall = () => G.mode === 'space' && G.world === 12 ? 2.2 : G.mode === 'space' && G.world !== 5 && G.world !== 7 && G.world !== 8 && G.world !== 9 && G.world !== 10 && G.world !== 11 ? 4.2 : MAXFALL;
 
 // ============================================================ Spielmodi
 const RUSH_BOSSES = ['bigpig', 'monkey', 'frog', 'chips', 'snowman', 'ghost', 'bat', 'robot', 'zebra', 'dog', 'slime'];   // der Riesenkürbis hat seinen eigenen Endgegner-Modus
@@ -1442,7 +1491,7 @@ function goHome() {
   if (G.state === 'ch') { chMap(); return; }
   if (G.state === 'dr') { openPart13(); return; }
   if (G.mode === 'dragon' && G.state !== 'part3') { G.mode = 'story'; openPart3(); return; }
-  if (G.mode === 'space' && G.state !== 'part4' && G.state !== 'part5') { G.mode = 'story'; if (G.world === 11) openPart12(); else if (G.world === 10) openPart10(); else if (G.world === 9) openPart8(); else if (G.world === 8) openPart9(); else if (G.world === 7) openPart7(); else if (G.world === 5) openPart5(); else openPart4(); return; }
+  if (G.mode === 'space' && G.state !== 'part4' && G.state !== 'part5') { G.mode = 'story'; if (G.world === 12) openPart14(); else if (G.world === 11) openPart12(); else if (G.world === 10) openPart10(); else if (G.world === 9) openPart8(); else if (G.world === 8) openPart9(); else if (G.world === 7) openPart7(); else if (G.world === 5) openPart5(); else openPart4(); return; }
   homeBtn.hidden = true;
   showTitle();
 }
@@ -1527,7 +1576,7 @@ const inBox = (pt, b) => pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y
 cv.addEventListener('pointermove', e => {
   const pt = canvasPoint(e);
   if (G.state === 'mc' && G.mc) { G.mc.mouse.x = pt.x; G.mc.mouse.y = pt.y; G.mc.mouse.moved = G.mc.time; cv.style.cursor = 'crosshair'; return; }
-  cv.style.cursor = (G.state === 'part5' && inBox(pt, ufoBox())) || G.state === 'part6' || G.state === 'part9' || G.state === 'part8' || G.state === 'part10' || G.state === 'part11' || G.state === 'part11b' || G.state === 'part12' || G.state === 'part13' || G.state === 'dr' || G.state === 'part11c' || (G.state === 'part7' && (inBox(pt, PORTAL_BTN) || inBox(pt, RMH_DOOR) || SUDPOL_BTNS.some(bt => inBox(pt, bt)))) || G.state.startsWith('fly') || (G.state === 'title' && inBox(pt, SUN_BTN)) || (G.state === 'part2' && inBox(pt, MOON_BTN)) || G.state === 'part2' || (G.state === 'part3' && (inBox(pt, PORTAL_BTN) || inBox(pt, PLANET_BTN))) || (G.state === 'part5' && (inBox(pt, PORTAL_BTN) || SATURN_BTNS.some(bt => inBox(pt, bt)))) || (G.state === 'part4' && (inBox(pt, PORTAL_BTN) || inBox(pt, SHOP_BTN) || inBox(pt, SATURN_BTN) || (G.space && G.space.shop) || SPACE_BTNS.some(bt => inBox(pt, bt)))) ? 'pointer' : '';
+  cv.style.cursor = (G.state === 'part5' && inBox(pt, ufoBox())) || G.state === 'part6' || G.state === 'part9' || G.state === 'part8' || G.state === 'part10' || G.state === 'part11' || G.state === 'part11b' || G.state === 'part12' || G.state === 'part13' || G.state === 'part14' || G.state === 'dr' || G.state === 'part11c' || (G.state === 'part7' && (inBox(pt, PORTAL_BTN) || inBox(pt, RMH_DOOR) || SUDPOL_BTNS.some(bt => inBox(pt, bt)))) || G.state.startsWith('fly') || (G.state === 'title' && inBox(pt, SUN_BTN)) || (G.state === 'part2' && inBox(pt, MOON_BTN)) || G.state === 'part2' || (G.state === 'part3' && (inBox(pt, PORTAL_BTN) || inBox(pt, PLANET_BTN))) || (G.state === 'part5' && (inBox(pt, PORTAL_BTN) || SATURN_BTNS.some(bt => inBox(pt, bt)))) || (G.state === 'part4' && (inBox(pt, PORTAL_BTN) || inBox(pt, SHOP_BTN) || inBox(pt, SATURN_BTN) || (G.space && G.space.shop) || SPACE_BTNS.some(bt => inBox(pt, bt)))) ? 'pointer' : '';
 });
 cv.addEventListener('pointerdown', e => {
   const pt = canvasPoint(e);
@@ -1543,6 +1592,7 @@ cv.addEventListener('pointerdown', e => {
   if (G.state === 'part11') { part11Click(pt); return; }
   if (G.state === 'part12') { part12Click(pt); return; }
   if (G.state === 'part13') { part13Click(pt); return; }
+  if (G.state === 'part14') { part14Click(pt); return; }
   if (G.state === 'dr') { press('jump'); return; }   // Klick = springen
   if (G.state === 'part11b') { part11bClick(pt); return; }
   if (G.state === 'part11c') { part11cClick(pt); return; }
@@ -1608,7 +1658,7 @@ function loadLevel(def, b) {
   L.groupIdx = 0;
   const kinds = L.bossGroups.flat();
   bosses = L.bossGroups.length ? spawnGroup(L.bossGroups[0]) : [];
-  G.bow = kinds.some(k => BOW_BOSSES.includes(k) || k === 'alienboss' || k === 'slimeboss' || k === 'stoneboss' || k === 'bassboss' || k === 'djboss' || k === 'discoboss' || k === 'bull' || k === 'trike' || k === 'rex' || k === 'cabbage' || k === 'witchboss' || k === 'dracula');   // beim Alien-König gibt's den Schlangenbogen dazu
+  G.bow = kinds.some(k => BOW_BOSSES.includes(k) || k === 'alienboss' || k === 'slimeboss' || k === 'stoneboss' || k === 'bassboss' || k === 'djboss' || k === 'discoboss' || k === 'bull' || k === 'trike' || k === 'rex' || k === 'crab' || k === 'octo' || k === 'cabbage' || k === 'witchboss' || k === 'dracula');   // beim Alien-König gibt's den Schlangenbogen dazu
   bQ.hidden = !G.bow;
   G.arena = false; G.bossIntroT = 0; G.bossDeadT = 0;
   camX = 0; camY = Math.max(0, L.rows * T - VH); rockTimer = 3.5;
@@ -1948,6 +1998,8 @@ function updatePlayer() {
     else { const fr = P.onGround ? 0.16 : 0.04; P.vx = P.vx > 0 ? Math.max(0, P.vx - fr) : Math.min(0, P.vx + fr); }
     if (Math.abs(P.vx) > maxv) P.vx = Math.sign(P.vx) * Math.max(maxv, Math.abs(P.vx) - 0.1);
   }
+  // Teil 14: unter Wasser paddelst du mit jedem Druck auf die Leertaste ein Stück nach oben
+  if (isSea() && pressed.jump && !P.onGround) { P.vy = Math.max(P.vy - 3.2, -3.4); pressed.jump = false; P.jumpBuf = 0; tone(300, 420, 0.07, 'sine', 0.04); parts.push({ x: P.x + 6, y: P.y + 4, vx: 0, vy: -0.6, life: 0.6, c: '#cfefff', s: 2 }); }
   // Doppelsprung aus dem Shop: in der Luft einmal nochmal springen (danach kommt erst das Jetpack)
   if (P.onGround) P.dj = true;
   else if (pressed.jump && P.coyote <= 0 && P.dj && hasItem('doppel') && !P.jetOn) {
@@ -1963,7 +2015,7 @@ function updatePlayer() {
   if (pressed.jump) P.jumpBuf = 0.12;
   P.coyote = P.onGround ? 0.1 : P.coyote - DT;
   P.jumpBuf -= DT;
-  if (P.jumpBuf > 0 && P.coyote > 0) { P.vy = -JUMP; P.jumpBuf = 0; P.coyote = 0; P.onGround = false; SFX.jump(); }
+  if (P.jumpBuf > 0 && P.coyote > 0) { P.vy = isSea() ? -3.8 : -JUMP; P.jumpBuf = 0; P.coyote = 0; P.onGround = false; SFX.jump(); }
   if (!K.jump && P.vy < -2.2) P.vy = -2.2;
   if (P.jetOn) {
     P.fuel = Math.max(0, P.fuel - DT); P.jumpBuf = 0;
@@ -2052,7 +2104,7 @@ function updatePlayer() {
   if (hasItem('magnet')) for (const c of L.coins) if (!c.taken) { const dx = P.x + P.w / 2 - (c.x + 3), dy = P.y + P.h / 2 - (c.y + 4); if (dx * dx + dy * dy < 56 * 56) { c.x += dx * 0.12; c.y += dy * 0.12; } }   // Münz-Magnet
   for (const c of L.coins) if (!c.taken && overlap(P, c)) { c.taken = true; G.coins++; G.st.coins++; G.score += 10; SFX.coin(); burst(c.x + 3, c.y + 4, ['#ffd23f', '#fff3b0'], 5, 1.2); }
 
-  if (P.y > L.rows * T + 8) die(L.def.water ? (L.def.hw ? 'Ins Meer gefallen!' : 'In den Billekanal gefallen!') : 'In die Grube gefallen!');
+  if (P.y > L.rows * T + 8) die(L.def.sea ? 'In einen tiefen Graben gesunken!' : L.def.water ? (L.def.hw ? 'Ins Meer gefallen!' : 'In den Billekanal gefallen!') : 'In die Grube gefallen!');
   if (!P.dead && L.goal != null && P.x + P.w > L.goal * T + 6) levelClear();
   if (!P.dead && L.flag && overlap(P, { x: L.flag.c * T, y: (L.flag.r - 3) * T, w: T, h: 3 * T })) levelClear();
   if (!P.dead && L.arenaCol != null && !G.arena && P.x > (L.arenaCol + 2) * T) lockArena();
@@ -2337,9 +2389,9 @@ function updateEnemies() {
     if (!P.dead && overlap(P, e) && !((e.type === 'spook' || e.type === 'vamp') && e.vis < 0.35)) {   // unsichtbare Geister sind nicht greifbar
       if (P.vy > 0.5 && P.y + P.h - P.vy <= e.y + 5) {
         e.hitBy = -2; hitEnemy(e, P.x + P.w / 2 < ecx ? 1 : -1);
-        P.vy = K.jump ? -6 : -4.6;
+        P.vy = (K.jump ? -6 : -4.6) * (isSea() ? 0.55 : 1);
       } else if (e.stun <= 0 && P.inv <= 0 && !(e.type === 'dummy' || e.type === 'brawler' || e.type === 'blaster' || (e.type === 'ninja' && !(e.dashT > 0)))) {   // Kämpfer treffen nur mit Angriffen
-        hurt(ecx, G.mode === 'space' && G.world === 11 ? (DINO_MSG[e.type] || 'Ein Dino hat dich erwischt!') : e.type === 'ninja' ? 'Der Ninja hat dich umgerannt!' : e.type === 'spider' ? 'Eine Spinne hat dich gezwickt!' : e.type === 'mummy' ? 'Die Mumie hat dich gepackt!' : e.type === 'vamp' ? 'Der Vampir hat dich erschreckt!' : e.type === 'spook' ? 'Buh! Ein Geist hat dich erschreckt!' : e.type === 'hbat' ? 'Eine Fledermaus hat dich gebissen!' : e.type === 'witch' ? 'Die Hexe hat dich erwischt!' : e.type === 'skel' ? 'Das Skelett hat dich erwischt!' : e.type === 'cart' ? 'Ein Einkaufswagen hat dich überrollt!' : e.type === 'sheep' ? 'Ein Schaf hat dich geschubst!' : e.type === 'cow' ? 'Ein Rind hat dich umgerannt!' : e.type === 'bag' ? 'Eine Plastiktüte hat dich erwischt!' : e.type === 'stall' ? 'Der Marktstand hat dich erwischt!' : e.type === 'phone' ? 'Das Handy hat dich gerammt!' : e.type === 'speaker' ? 'Die Box hat dich umgehauen!' : e.type === 'press' ? 'Die Plattenpresse hat dich erwischt!' : e.type === 'popcorn' ? 'Die Popcorn-Maschine hat dich erwischt!' : e.type === 'alien' ? 'Das Alien hat dich geschubst!' : e.type === 'armslime' ? 'Der Arm-Schleim hat dich geschnappt!' : e.type === 'pig' ? 'Das Schwein hat dich umgerannt!' : e.type === 'zombie' ? 'Der Zombie hat dich gepackt!' : 'Der grüne Kürbis hat dich erwischt!', e.type === 'zombie' ? 2 : 1);
+        hurt(ecx, isSea() ? (SEA_MSG[e.type] || 'Ein Meerestier hat dich erwischt!') : G.mode === 'space' && G.world === 11 ? (DINO_MSG[e.type] || 'Ein Dino hat dich erwischt!') : e.type === 'ninja' ? 'Der Ninja hat dich umgerannt!' : e.type === 'spider' ? 'Eine Spinne hat dich gezwickt!' : e.type === 'mummy' ? 'Die Mumie hat dich gepackt!' : e.type === 'vamp' ? 'Der Vampir hat dich erschreckt!' : e.type === 'spook' ? 'Buh! Ein Geist hat dich erschreckt!' : e.type === 'hbat' ? 'Eine Fledermaus hat dich gebissen!' : e.type === 'witch' ? 'Die Hexe hat dich erwischt!' : e.type === 'skel' ? 'Das Skelett hat dich erwischt!' : e.type === 'cart' ? 'Ein Einkaufswagen hat dich überrollt!' : e.type === 'sheep' ? 'Ein Schaf hat dich geschubst!' : e.type === 'cow' ? 'Ein Rind hat dich umgerannt!' : e.type === 'bag' ? 'Eine Plastiktüte hat dich erwischt!' : e.type === 'stall' ? 'Der Marktstand hat dich erwischt!' : e.type === 'phone' ? 'Das Handy hat dich gerammt!' : e.type === 'speaker' ? 'Die Box hat dich umgehauen!' : e.type === 'press' ? 'Die Plattenpresse hat dich erwischt!' : e.type === 'popcorn' ? 'Die Popcorn-Maschine hat dich erwischt!' : e.type === 'alien' ? 'Das Alien hat dich geschubst!' : e.type === 'armslime' ? 'Der Arm-Schleim hat dich geschnappt!' : e.type === 'pig' ? 'Das Schwein hat dich umgerannt!' : e.type === 'zombie' ? 'Der Zombie hat dich gepackt!' : 'Der grüne Kürbis hat dich erwischt!', e.type === 'zombie' ? 2 : 1);
         e.stun = 0.6; e.face = pcx < ecx ? 1 : -1; e.vx = e.face * 1.4;
       }
     }
@@ -2351,7 +2403,7 @@ function updateEnemies() {
 const BOW_BOSSES = ['frog', 'ghost', 'bat'];          // diese Endgegner trifft nur der Schlangenbogen
 const needsBow = b => BOW_BOSSES.includes(b.kind);
 // Breite, Höhe, Leben
-const BOSS_DIMS = { bigpig: [44, 28, 6], monkey: [24, 30, 6], frog: [28, 20, 5], chips: [20, 28, 6], snowman: [26, 42, 8], ghost: [24, 26, 6], bat: [32, 16, 6], robot: [24, 34, 8], giant: [24, 36, 54], zebra: [26, 24, 6], dog: [34, 22, 6], slime: [20, 14, 1], pan: [18, 34, 6], fart: [20, 34, 6], dragon: [52, 30, 100], alienboss: [28, 38, 24], slimeboss: [44, 32, 30], stoneboss: [40, 44, 36], bassboss: [44, 46, 36], djboss: [52, 26, 40], discoboss: [40, 40, 40], bull: [44, 30, 30], cabbage: [44, 44, 36], witchboss: [36, 34, 40], dracula: [26, 40, 40], champ: [20, 40, 60], trike: [44, 30, 32], rex: [48, 46, 40] };   // Drache: noch mehr Leben als 10x der Eis-Hund
+const BOSS_DIMS = { bigpig: [44, 28, 6], monkey: [24, 30, 6], frog: [28, 20, 5], chips: [20, 28, 6], snowman: [26, 42, 8], ghost: [24, 26, 6], bat: [32, 16, 6], robot: [24, 34, 8], giant: [24, 36, 54], zebra: [26, 24, 6], dog: [34, 22, 6], slime: [20, 14, 1], pan: [18, 34, 6], fart: [20, 34, 6], dragon: [52, 30, 100], alienboss: [28, 38, 24], slimeboss: [44, 32, 30], stoneboss: [40, 44, 36], bassboss: [44, 46, 36], djboss: [52, 26, 40], discoboss: [40, 40, 40], bull: [44, 30, 30], cabbage: [44, 44, 36], witchboss: [36, 34, 40], dracula: [26, 40, 40], champ: [20, 40, 60], trike: [44, 30, 32], rex: [48, 46, 40], crab: [46, 30, 34], octo: [50, 42, 42] };   // Drache: noch mehr Leben als 10x der Eis-Hund
 // Startplätze weit weg vom Spieler wählen (bei zwei Endgegnern: links und rechts)
 function spawnGroup(kinds) {
   const pc = (P.x + P.w / 2) / T - L.arenaCol;
@@ -2369,11 +2421,11 @@ function makeBoss(kind, col = L.arenaCol + 17) {
   const b = { kind, w, h, x: col * T, y: 0, vx: 0, vy: 0, face: -1, hp, maxHp: hp, flash: 0, active: false, dead: false, onGround: true, anim: 0, hitBy: -1, hintCd: 0,
     state: 'idle', t: 1.2, cd: 1.5, back: 8, mouthT: 0, jumps: 0, high: false, cycle: 0, shotN: 3, stamina: 6, wall: false, dir: -1, actions: 0 };
   b.y = floorY(col) - b.h;
-  const init = { bigpig: ['walk'], frog: ['shoot', 1], chips: ['run'], snowman: ['throw', 1], ghost: ['float', 1.2, 3], bat: ['fly', 1.5, 3.5], robot: ['walk', 1.5, 1.5], giant: ['walk', 1.5, 2], zebra: ['throw', 1], dog: ['chase', 1.6, 10], slime: ['hop', 0.6], pan: ['throw', 1.2], fart: ['walk', 1.5, 1.8], dragon: ['fly', 0, 2], alienboss: ['walk', 1.4], slimeboss: ['walk', 1.6], stoneboss: ['walk', 1.6], bassboss: ['walk', 1.6], djboss: ['walk', 1.6], discoboss: ['walk', 1.8], bull: ['walk', 1.6], trike: ['walk', 1.6], rex: ['walk', 1.8], cabbage: ['walk', 1.6], witchboss: ['walk', 1.8], dracula: ['walk', 1.8], champ: ['walk', 1.6] }[kind];
+  const init = { bigpig: ['walk'], frog: ['shoot', 1], chips: ['run'], snowman: ['throw', 1], ghost: ['float', 1.2, 3], bat: ['fly', 1.5, 3.5], robot: ['walk', 1.5, 1.5], giant: ['walk', 1.5, 2], zebra: ['throw', 1], dog: ['chase', 1.6, 10], slime: ['hop', 0.6], pan: ['throw', 1.2], fart: ['walk', 1.5, 1.8], dragon: ['fly', 0, 2], alienboss: ['walk', 1.4], slimeboss: ['walk', 1.6], stoneboss: ['walk', 1.6], bassboss: ['walk', 1.6], djboss: ['walk', 1.6], discoboss: ['walk', 1.8], bull: ['walk', 1.6], trike: ['walk', 1.6], rex: ['walk', 1.8], crab: ['walk', 1.6], octo: ['walk', 1.8], cabbage: ['walk', 1.6], witchboss: ['walk', 1.8], dracula: ['walk', 1.8], champ: ['walk', 1.6] }[kind];
   if (kind === 'champ') b.seq = 0;
   if (kind === 'dracula') { b.seq = 0; b.vis = 1; }
   if (kind === 'witchboss') { b.seq = 0; b.y = 46; }
-  if (kind === 'bull' || kind === 'trike' || kind === 'rex' || kind === 'cabbage') { b.seq = 0; b.hop = 0; }
+  if (kind === 'bull' || kind === 'trike' || kind === 'rex' || kind === 'crab' || kind === 'octo' || kind === 'cabbage') { b.seq = 0; b.hop = 0; }
   if (kind === 'discoboss') { b.seq = 0; b.y = 50; }
   if (kind === 'djboss') { b.seq = 0; b.spin = 0; }
   if (kind === 'bassboss') { b.seq = 0; b.hop = 0; }
@@ -2411,7 +2463,7 @@ function bossVulnerable(b) {
     case 'stoneboss': return b.state === 'dizzy' && b.hitsLeft > 0;
     case 'bassboss': case 'djboss': case 'discoboss': case 'cabbage': case 'witchboss': case 'dracula': return b.state === 'tired' && b.hitsLeft > 0;
     case 'champ': return ['walk', 'recover', 'stagger', 'seriousPrep'].includes(b.state);
-    case 'bull': case 'trike': case 'rex': return b.state === 'dizzy' && b.hitsLeft > 0;
+    case 'bull': case 'trike': case 'rex': case 'crab': case 'octo': return b.state === 'dizzy' && b.hitsLeft > 0;
     default: return false;
   }
 }
@@ -2433,7 +2485,7 @@ function bossHarmful(b) {
     case 'bassboss': case 'djboss': case 'discoboss': case 'cabbage': case 'witchboss': return b.state !== 'tired';
     case 'dracula': return b.state !== 'tired' && b.state !== 'vanish' && b.state !== 'aim';
     case 'champ': return b.state === 'rush' || b.state === 'leap' || b.state === 'barrage';
-    case 'bull': case 'trike': case 'rex': return b.state !== 'dizzy';
+    case 'bull': case 'trike': case 'rex': case 'crab': case 'octo': return b.state !== 'dizzy';
     default: return true;
   }
 }
@@ -2451,12 +2503,12 @@ function punchBoss(b) {
   if (bossVulnerable(b)) bossHurt(b, P.face);
   else {
     SFX.bump();
-    hint(b, { bigpig: 'WARTE BIS ES UMFÄLLT!', chips: 'NOCH ZU FIT!', snowman: 'ERST WENN ER SCHWITZT!', robot: 'ERST WENN ER QUALMT!', giant: 'WARTE AUF DEN BAUCHKLATSCHER!', zebra: 'ERST NACH 3 WÜRFEN!', dog: 'ERST NACH DEM AUFPRALL!', dragon: 'IM FLUG NUR MIT DEM BOGEN (Q)!', alienboss: 'ERST NACH SEINEM RIESENSPRUNG!', slimeboss: 'ERST WENN ER ZERFLIESST! ODER BOGEN (Q)!', stoneboss: 'ZU HART! ERST WENN ER BENOMMEN IST!', bassboss: 'ERST WENN SIE ÜBERHITZT IST!', djboss: 'ERST WENN DIE NADEL RAUSSPRINGT!', discoboss: 'ERST WENN SIE AM BODEN LIEGT!', bull: 'ERST WENN ER GEGEN DIE WAND KRACHT!', trike: 'ERST WENN ER GEGEN DIE WAND KRACHT!', rex: 'ERST WENN ER GEGEN DIE WAND KRACHT!', witchboss: 'ERST NACH IHREM STURZFLUG!', dracula: 'ERST WENN ER IM SARG RUHT!', champ: 'ER IST ZU SCHNELL! WARTE AUF DIE LÜCKE!', cabbage: 'ERST WENN ER WELKT!', pan: 'ERST WENN SIE KEINE PFANNEN HAT!', fart: 'ERST WENN ER SCHNAUFT!' }[b.kind] || 'JETZT NICHT!');
+    hint(b, { bigpig: 'WARTE BIS ES UMFÄLLT!', chips: 'NOCH ZU FIT!', snowman: 'ERST WENN ER SCHWITZT!', robot: 'ERST WENN ER QUALMT!', giant: 'WARTE AUF DEN BAUCHKLATSCHER!', zebra: 'ERST NACH 3 WÜRFEN!', dog: 'ERST NACH DEM AUFPRALL!', dragon: 'IM FLUG NUR MIT DEM BOGEN (Q)!', alienboss: 'ERST NACH SEINEM RIESENSPRUNG!', slimeboss: 'ERST WENN ER ZERFLIESST! ODER BOGEN (Q)!', stoneboss: 'ZU HART! ERST WENN ER BENOMMEN IST!', bassboss: 'ERST WENN SIE ÜBERHITZT IST!', djboss: 'ERST WENN DIE NADEL RAUSSPRINGT!', discoboss: 'ERST WENN SIE AM BODEN LIEGT!', bull: 'ERST WENN ER GEGEN DIE WAND KRACHT!', trike: 'ERST WENN ER GEGEN DIE WAND KRACHT!', rex: 'ERST WENN ER GEGEN DIE WAND KRACHT!', crab: 'ERST WENN ER GEGEN DIE WAND KRACHT!', octo: 'ERST WENN SIE GEGEN DIE WAND KRACHT!', witchboss: 'ERST NACH IHREM STURZFLUG!', dracula: 'ERST WENN ER IM SARG RUHT!', champ: 'ER IST ZU SCHNELL! WARTE AUF DIE LÜCKE!', cabbage: 'ERST WENN ER WELKT!', pan: 'ERST WENN SIE KEINE PFANNEN HAT!', fart: 'ERST WENN ER SCHNAUFT!' }[b.kind] || 'JETZT NICHT!');
   }
 }
 const BOSS_COLS = {
   bigpig: ['#f3a3b5', '#d47890'], monkey: ['#7a4a26', '#e8c49a'], frog: ['#4f9e3a', '#dfe9a0'], chips: ['#f2c230', '#d62828', '#ffd560'],
-  snowman: ['#f4f8ff', '#c4d2e6', '#f07b1c'], ghost: ['#eef0ff', '#c9a0ff'], bat: ['#3a2450', '#5a3a78', '#ff3030'], robot: ['#9aa3b5', '#3d4352', '#ffd23f'], giant: ['#f08a1c', '#d62828', '#ffd23f'], zebra: ['#f4f4f4', '#1a1a1a', '#2e9e3e'], dog: ['#c8893c', '#f0d6a8', '#ff6b8a'], slime: ['#5fd35a', '#b9ff9a'], pan: ['#2b2f45', '#141414', '#f2c9a0'], fart: ['#f08a1c', '#f2c9a0', '#9be37a'], dragon: ['#8a1c1c', '#f0a040', '#ffe14a', '#ff5a2a'], alienboss: ['#5fc8a0', '#8a5ad6', '#ff5ad5', '#ffd23f'], slimeboss: ['#b05ae0', '#e3b0ff', '#ff5ad5', '#6a2a9e'], stoneboss: ['#8a8070', '#5a5248', '#ff8a1c', '#c8beb0'], djboss: ['#2a2a36', '#14141c', '#ffd23f', '#ff5ad5'], bull: ['#6a3a1e', '#f0e6c8', '#ffd23f'], trike: ['#5a8a5a', '#c86a3a', '#f0e6c8'], rex: ['#4a7a3a', '#2a5a24', '#ffd23f'], dracula: ['#14141c', '#8a1a3a', '#e8e0f0', '#c94aff'], champ: ['#d62828', '#e8b890', '#ffffff', '#ffd23f'], witchboss: ['#5a2a8a', '#6dd64a', '#14141c', '#f08a1c'], cabbage: ['#5aa83a', '#3a7a2a', '#ff9a1c', '#ffd23f'], discoboss: ['#c8c8d8', '#ffffff', '#ff9af0', '#9af0ff'], bassboss: ['#1e1e26', '#5ff0ff', '#ff5ad5', '#ffd23f'],
+  snowman: ['#f4f8ff', '#c4d2e6', '#f07b1c'], ghost: ['#eef0ff', '#c9a0ff'], bat: ['#3a2450', '#5a3a78', '#ff3030'], robot: ['#9aa3b5', '#3d4352', '#ffd23f'], giant: ['#f08a1c', '#d62828', '#ffd23f'], zebra: ['#f4f4f4', '#1a1a1a', '#2e9e3e'], dog: ['#c8893c', '#f0d6a8', '#ff6b8a'], slime: ['#5fd35a', '#b9ff9a'], pan: ['#2b2f45', '#141414', '#f2c9a0'], fart: ['#f08a1c', '#f2c9a0', '#9be37a'], dragon: ['#8a1c1c', '#f0a040', '#ffe14a', '#ff5a2a'], alienboss: ['#5fc8a0', '#8a5ad6', '#ff5ad5', '#ffd23f'], slimeboss: ['#b05ae0', '#e3b0ff', '#ff5ad5', '#6a2a9e'], stoneboss: ['#8a8070', '#5a5248', '#ff8a1c', '#c8beb0'], djboss: ['#2a2a36', '#14141c', '#ffd23f', '#ff5ad5'], bull: ['#6a3a1e', '#f0e6c8', '#ffd23f'], trike: ['#5a8a5a', '#c86a3a', '#f0e6c8'], rex: ['#4a7a3a', '#2a5a24', '#ffd23f'], crab: ['#d83a2a', '#ffd23f', '#ffffff'], octo: ['#9a4ac8', '#e8b8f8', '#6a2a9a'], dracula: ['#14141c', '#8a1a3a', '#e8e0f0', '#c94aff'], champ: ['#d62828', '#e8b890', '#ffffff', '#ffd23f'], witchboss: ['#5a2a8a', '#6dd64a', '#14141c', '#f08a1c'], cabbage: ['#5aa83a', '#3a7a2a', '#ff9a1c', '#ffd23f'], discoboss: ['#c8c8d8', '#ffffff', '#ff9af0', '#9af0ff'], bassboss: ['#1e1e26', '#5ff0ff', '#ff5ad5', '#ffd23f'],
 };
 function bossHurt(b, dir) {
   if (b.dead) return;
@@ -2467,7 +2519,7 @@ function bossHurt(b, dir) {
   if (b.kind === 'dragon' && b.state === 'tired' && b.hp > 0 && --b.hitsLeft <= 0) { b.state = 'rise'; b.t = 0.9; b.sy = b.y; pop(b.x, b.y - 16, 'ER FLIEGT WIEDER LOS!', '#ff8a6a', 1.2); }
   if (b.kind === 'dracula' && b.state === 'tired' && b.hp > 0 && --b.hitsLeft <= 0) { b.t = 0; pop(b.x - 4, b.y - 16, 'ER STEIGT AUS DEM SARG!', '#ff8a6a', 1); }
   if (b.kind === 'witchboss' && b.state === 'tired' && b.hp > 0 && --b.hitsLeft <= 0) { b.t = 0; pop(b.x - 4, b.y - 16, 'SIE FLIEGT WIEDER!', '#ff8a6a', 1); }
-  if ((b.kind === 'bull' || b.kind === 'trike' || b.kind === 'rex') && b.state === 'dizzy' && b.hp > 0 && --b.hitsLeft <= 0) { b.t = 0; pop(b.x - 4, b.y - 16, 'WIEDER WACH!', '#ff8a6a', 1); }
+  if ((b.kind === 'bull' || b.kind === 'trike' || b.kind === 'rex' || b.kind === 'crab' || b.kind === 'octo') && b.state === 'dizzy' && b.hp > 0 && --b.hitsLeft <= 0) { b.t = 0; pop(b.x - 4, b.y - 16, 'WIEDER WACH!', '#ff8a6a', 1); }
   if (b.kind === 'cabbage' && b.state === 'tired' && b.hp > 0 && --b.hitsLeft <= 0) { b.t = 0; pop(b.x - 4, b.y - 16, 'WIEDER KNACKIG!', '#ff8a6a', 1); }
   if (b.kind === 'discoboss' && b.state === 'tired' && b.hp > 0 && --b.hitsLeft <= 0) { b.t = 0; pop(b.x - 4, b.y - 16, 'SIE FLIEGT WIEDER HOCH!', '#ff8a6a', 1); }
   if (b.kind === 'djboss' && b.state === 'tired' && b.hp > 0 && --b.hitsLeft <= 0) { b.t = 0; pop(b.x - 4, b.y - 16, 'NADEL WIEDER DRAUF!', '#ff8a6a', 1); }
@@ -2886,7 +2938,7 @@ function updateBoss(b) {
       b.y -= 1.6;
       if (b.y <= hoverY) { b.state = 'walk'; b.cd = 1; }
     }
-  } else if ((b.kind === 'bull' || b.kind === 'trike' || b.kind === 'rex')) {
+  } else if ((b.kind === 'bull' || b.kind === 'trike' || b.kind === 'rex' || b.kind === 'crab' || b.kind === 'octo')) {
     const rage = b.hp <= b.maxHp / 2;
     if (b.state === 'walk') {
       b.cd -= DT; b.face = dx > 0 ? 1 : -1;
@@ -2895,7 +2947,7 @@ function updateBoss(b) {
         const plan = ['stomp', 'herd', 'charge'][b.seq++ % 3];
         b.vx = 0;
         if (plan === 'stomp') { b.state = 'stompPrep'; b.t = 0.6; }
-        else if (plan === 'herd') { b.state = 'herd'; b.t = 0.7; pop(b.x - 6, b.y - 18, b.kind === 'rex' ? 'ROOOAAAR!' : b.kind === 'trike' ? 'FELSBROCKEN!' : 'HEUBALLEN!', '#ffd23f', 1.2); tone(220, 160, 0.3, 'triangle', 0.04); }
+        else if (plan === 'herd') { b.state = 'herd'; b.t = 0.7; pop(b.x - 6, b.y - 18, b.kind === 'rex' ? 'ROOOAAAR!' : b.kind === 'octo' ? 'STEINE SINKEN!' : b.kind === 'crab' ? 'MUSCHELN!' : b.kind === 'trike' ? 'FELSBROCKEN!' : 'HEUBALLEN!', '#ffd23f', 1.2); tone(220, 160, 0.3, 'triangle', 0.04); }
         else { b.state = 'chargePrep'; b.t = 0.9; pop(b.x - 20, b.y - 18, 'ER NIMMT ANLAUF! SPRING!', '#ff8a6a', 1.2); }
       }
     } else if (b.state === 'stompPrep') {
@@ -2906,8 +2958,8 @@ function updateBoss(b) {
       // Attacke 2: schleudert mit den Hörnern Heuballen, die über den Boden rollen
       b.vx = 0; b.face = dx > 0 ? 1 : -1;
       if (b.t <= 0) {
-        if (b.kind === 'rex') { spawnRockAt(Math.floor((P.x + P.w / 2) / T)); for (let k = 0; k < (rage ? 6 : 4); k++) spawnRockAt(L.arenaCol + 1 + Math.floor(Math.random() * 22)); G.shake = 5; tone(90, 60, 0.6, 'sawtooth', 0.06); }   // König Rex brüllt: Steine fallen von oben
-        else for (let k = 0; k < (rage ? 4 : 3); k++) shots.push({ kind: 'boulder', hay: b.kind === 'bull', owner: b, msg: b.kind === 'trike' ? 'Ein Felsbrocken hat dich umgerollt!' : 'Ein Heuballen hat dich umgerollt!', x: bcx - 7, y: b.y - 12, w: 14, h: 14, vx: b.face * (1.3 + k * 0.5), vy: -3 - (k % 2) * 0.6, rot: 0, life: 8 });
+        if (b.kind === 'rex' || b.kind === 'octo') { spawnRockAt(Math.floor((P.x + P.w / 2) / T)); for (let k = 0; k < (rage ? 6 : 4); k++) spawnRockAt(L.arenaCol + 1 + Math.floor(Math.random() * 22)); G.shake = 5; tone(90, 60, 0.6, 'sawtooth', 0.06); }   // König Rex brüllt: Steine fallen von oben
+        else for (let k = 0; k < (rage ? 4 : 3); k++) shots.push({ kind: 'boulder', hay: b.kind === 'bull', owner: b, msg: b.kind === 'crab' ? 'Eine Muschel hat dich getroffen!' : b.kind === 'trike' ? 'Ein Felsbrocken hat dich umgerollt!' : 'Ein Heuballen hat dich umgerollt!', x: bcx - 7, y: b.y - 12, w: 14, h: 14, vx: b.face * (1.3 + k * 0.5), vy: -3 - (k % 2) * 0.6, rot: 0, life: 8 });
         SFX.shoot(); b.state = 'walk'; b.cd = rage ? 1.2 : 1.6;
       }
     } else if (b.state === 'chargePrep') {
@@ -3699,7 +3751,7 @@ function updateBoss(b) {
         b.state = 'recover'; b.t = 1.8; b.vx = 0; G.shake = 6; SFX.rock();
         spawnWaves(b, false); burst(b.x + b.w / 2, b.y + b.h, [L.theme.grass, L.theme.dirt], 16, 2.6);
       }
-      if ((b.kind === 'bull' || b.kind === 'trike' || b.kind === 'rex') && b.state === 'stompAir') {
+      if ((b.kind === 'bull' || b.kind === 'trike' || b.kind === 'rex' || b.kind === 'crab' || b.kind === 'octo') && b.state === 'stompAir') {
         b.state = 'walk'; b.cd = 1.3; b.vx = 0; G.shake = 7; SFX.rock();
         spawnWaves(b, false); burst(b.x + b.w / 2, b.y + b.h, [L.theme.grass, L.theme.dirt], 18, 2.6);
       }
@@ -3883,9 +3935,9 @@ function updateShots() {
   for (const a of arrows) {
     a.x += a.vx; a.life -= DT;
     if (solid(Math.floor((a.x + (a.vx > 0 ? a.w : 0)) / T), Math.floor((a.y + 2) / T))) { a.life = 0; continue; }
-    const rockHit = bosses.find(b => ((b.kind === 'stoneboss' && b.state !== 'dizzy') || ((b.kind === 'bassboss' || b.kind === 'djboss' || b.kind === 'discoboss' || b.kind === 'cabbage' || b.kind === 'witchboss' || b.kind === 'dracula') && b.state !== 'tired') || ((b.kind === 'bull' || b.kind === 'trike' || b.kind === 'rex') && b.state !== 'dizzy')) && !b.dead && overlap(a, b));
+    const rockHit = bosses.find(b => ((b.kind === 'stoneboss' && b.state !== 'dizzy') || ((b.kind === 'bassboss' || b.kind === 'djboss' || b.kind === 'discoboss' || b.kind === 'cabbage' || b.kind === 'witchboss' || b.kind === 'dracula') && b.state !== 'tired') || ((b.kind === 'bull' || b.kind === 'trike' || b.kind === 'rex' || b.kind === 'crab' || b.kind === 'octo') && b.state !== 'dizzy')) && !b.dead && overlap(a, b));
     if (rockHit) { a.life = 0; burst(a.x + a.w / 2, a.y + 2, ['#c8beb0', '#ffffff'], 5, 1.5); SFX.bump(); hint(rockHit, rockHit.kind === 'dracula' ? 'KLONK! ERST WENN ER IM SARG RUHT!' : rockHit.kind === 'witchboss' ? 'KLONK! ERST NACH IHREM STURZFLUG!' : rockHit.kind === 'bull' ? 'KLONK! ERST NACH DEM ANSTURM!' : rockHit.kind === 'cabbage' ? 'KLONK! ERST WENN ER WELKT!' : rockHit.kind === 'discoboss' ? 'KLONK! ERST WENN SIE AM BODEN LIEGT!' : rockHit.kind === 'djboss' ? 'KLONK! ERST WENN DIE NADEL RAUS IST!' : rockHit.kind === 'bassboss' ? 'KLONK! ERST WENN SIE ÜBERHITZT!' : 'KLONK! PFEILE PRALLEN AB!'); continue; }   // Stein ist zu hart
-    const target = G.bossIntroT <= 0 && bosses.find(b => (needsBow(b) || b.controlled || b.kind === 'dragon' || b.kind === 'alienboss' || b.kind === 'slimeboss' || b.kind === 'stoneboss' || b.kind === 'bassboss' || b.kind === 'djboss' || b.kind === 'discoboss' || (b.kind === 'bull' || b.kind === 'trike' || b.kind === 'rex') || b.kind === 'cabbage' || b.kind === 'witchboss' || b.kind === 'dracula') && b.active && !b.dead && arrowCanHit(b) && overlap(a, b));
+    const target = G.bossIntroT <= 0 && bosses.find(b => (needsBow(b) || b.controlled || b.kind === 'dragon' || b.kind === 'alienboss' || b.kind === 'slimeboss' || b.kind === 'stoneboss' || b.kind === 'bassboss' || b.kind === 'djboss' || b.kind === 'discoboss' || (b.kind === 'bull' || b.kind === 'trike' || b.kind === 'rex' || b.kind === 'crab' || b.kind === 'octo') || b.kind === 'cabbage' || b.kind === 'witchboss' || b.kind === 'dracula') && b.active && !b.dead && arrowCanHit(b) && overlap(a, b));
     if (target) { a.life = 0; bossHurt(target, a.vx > 0 ? 1 : -1); continue; }
     for (const s of shots) if (BOW_TARGETS.includes(s.kind) && s.life > 0 && a.life > 0 && overlap(a, s)) { s.life = 0; a.life = 0; burst(s.x + 4, s.y + 3, ['#3b2a6b', '#9d88e6', '#c9a0ff'], 6, 1.4); G.score += 20; }
   }
@@ -3953,7 +4005,7 @@ function updateRocks() {
         const k = 1 - r.t / FALL;
         r.y = -16 + (r.sy - 12 + 16) * k * k;
         if (!P.dead && overlap(P, { x: r.x, y: r.y, w: 12, h: 11 })) {
-          hurt(r.x + 6, G.world === 11 && G.mode === 'space' ? 'Ein Vulkanstein ist auf dich gefallen!' : G.world === 9 && G.mode === 'space' ? 'Ein Zaubertrank ist auf dich gefallen!' : G.world === 8 && G.mode === 'space' ? (L.def.fall === 'tomato' ? 'Eine Riesen-Tomate ist auf dich geplatscht!' : 'Ein Schneeklumpen ist vom Dach gerutscht!') : G.world === 7 && G.mode === 'space' ? (L.def.spots ? 'Ein Scheinwerfer ist runtergefallen!' : 'Eine Disco-Kugel ist dir auf den Kopf gefallen!') : G.mode === 'space' ? 'Ein Meteorit ist dir auf den Kopf gefallen!' : 'Ein Stein ist dir auf den Kopf gefallen!');
+          hurt(r.x + 6, G.world === 12 && G.mode === 'space' ? 'Ein sinkender Stein hat dich getroffen!' : G.world === 11 && G.mode === 'space' ? 'Ein Vulkanstein ist auf dich gefallen!' : G.world === 9 && G.mode === 'space' ? 'Ein Zaubertrank ist auf dich gefallen!' : G.world === 8 && G.mode === 'space' ? (L.def.fall === 'tomato' ? 'Eine Riesen-Tomate ist auf dich geplatscht!' : 'Ein Schneeklumpen ist vom Dach gerutscht!') : G.world === 7 && G.mode === 'space' ? (L.def.spots ? 'Ein Scheinwerfer ist runtergefallen!' : 'Eine Disco-Kugel ist dir auf den Kopf gefallen!') : G.mode === 'space' ? 'Ein Meteorit ist dir auf den Kopf gefallen!' : 'Ein Stein ist dir auf den Kopf gefallen!');
           r.state = 'gone'; burst(r.x + 6, r.y + 6, ['#a9a3b2', '#7c7787', '#4b4654'], 12, 2.2); SFX.rock();
           continue;
         }
@@ -3987,7 +4039,7 @@ function levelClear() {
   const rank = rating >= 0.85 ? 'S' : rating >= 0.65 ? 'A' : rating >= 0.45 ? 'B' : 'C';
   const stars = rank === 'S' || rank === 'A' ? 3 : rank === 'B' ? 2 : 1;
   const pts = G.score - G.levelScore;
-  const key = (G.mode === 'space' ? (G.world === 11 ? 'D' : G.world === 10 ? 'K' : G.world === 9 ? 'H' : G.world === 8 ? 'R' : G.world === 7 ? 'P' : G.world === 5 ? 'S' : 'W') : 'L') + (G.level + 1);
+  const key = (G.mode === 'space' ? (G.world === 12 ? 'T' : G.world === 11 ? 'D' : G.world === 10 ? 'K' : G.world === 9 ? 'H' : G.world === 8 ? 'R' : G.world === 7 ? 'P' : G.world === 5 ? 'S' : 'W') : 'L') + (G.level + 1);
   const entry = { n: G.name, p: pts, r: rank };
   const list = (store.best[key] || []).concat([entry]).sort((a, b) => b.p - a.p);
   const pos = list.indexOf(entry);
@@ -4093,6 +4145,11 @@ function step() {
     case 'part13':
       ['one', 'two', 'three', 'four', 'five'].forEach((k, i) => { if (pressed[k] && G.state === 'part13') playDR(i); });
       if (pressed.enter && G.state === 'part13') playDR(drUnlocked() - 1);
+      break;
+    case 'part14':
+      updatePart14();
+      ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'].forEach((k, i) => { if (pressed[k] && G.state === 'part14') playSea(i); });
+      if (pressed.enter && G.state === 'part14') playSea(seaUnlocked() - 1);
       break;
     case 'part12':
       updatePart12();
@@ -4202,13 +4259,13 @@ function step() {
       if (G.stateT > 1.2 && (pressed.enter || pressed.jump)) {
         if (G.mode === 'space') {
           if (G.level + 1 < worldLevels().length) startSpaceLevel(G.level + 1);
-          else { store[G.world === 11 ? 'dinoWon' : G.world === 10 ? 'ftWon' : G.world === 9 ? 'hwWon' : G.world === 8 ? 'rmhWon' : G.world === 7 ? 'sudpolWon' : G.world === 5 ? 'saturnWon' : 'spaceWon10'] = true; saveStore(); G.state = 'win'; G.stateT = 0; }
+          else { store[G.world === 12 ? 'seaWon' : G.world === 11 ? 'dinoWon' : G.world === 10 ? 'ftWon' : G.world === 9 ? 'hwWon' : G.world === 8 ? 'rmhWon' : G.world === 7 ? 'sudpolWon' : G.world === 5 ? 'saturnWon' : 'spaceWon10'] = true; saveStore(); G.state = 'win'; G.stateT = 0; }
         } else if (G.level + 1 < LEVELS.length) startLevel(G.level + 1);
         else { G.state = 'win'; G.stateT = 0; }
       }
       break;
     case 'win':
-      if (G.stateT > 1.2 && (pressed.enter || pressed.jump)) { if (G.mode === 'space') { G.mode = 'story'; if (G.world === 11) openPart12(); else if (G.world === 10) openPart10(); else if (G.world === 9) openPart8(); else if (G.world === 8) openPart9(); else if (G.world === 7) openPart7(); else if (G.world === 5) openPart5(); else openPart4(); } else showTitle(); }
+      if (G.stateT > 1.2 && (pressed.enter || pressed.jump)) { if (G.mode === 'space') { G.mode = 'story'; if (G.world === 12) openPart14(); else if (G.world === 11) openPart12(); else if (G.world === 10) openPart10(); else if (G.world === 9) openPart8(); else if (G.world === 8) openPart9(); else if (G.world === 7) openPart7(); else if (G.world === 5) openPart5(); else openPart4(); } else showTitle(); }
       break;
     case 'over':
       updateParts();
@@ -4244,6 +4301,7 @@ function drawBG(themeIdx, cam) {
   if (themeIdx === 8) { drawHwBG(cam); return; }
   if (themeIdx === 9) { drawFightBG(cam); return; }
   if (themeIdx === 10) { drawDinoBG(cam); return; }
+  if (themeIdx === 11) { drawSeaBG(cam); return; }
   const th = THEMES[themeIdx];
   const bands = 14;
   for (let i = 0; i < bands; i++) rect(0, i * VH / bands, VW, Math.ceil(VH / bands) + 1, lerpColor(th.sky[0], th.sky[1], i / (bands - 1)));
@@ -4297,6 +4355,11 @@ function drawDecor(c, y) {
     rect(x + 4, y - 7, 9, 7, '#f08a1c'); rect(x + 3, y - 6, 11, 5, '#f08a1c');
     rect(x + 6, y - 7, 1, 7, '#c4620b'); rect(x + 10, y - 7, 1, 7, '#c4620b');
     rect(x + 8, y - 9, 2, 2, '#3f7d20');
+  } else if (d === 'coral') {                      // Tiefsee: Korallen, Muscheln und Seesterne am Grund
+    const h = hash(c + 41) % 10;
+    if (h === 0) { rect(x + 6, y - 8, 3, 8, '#e86a8a'); rect(x + 3, y - 6, 3, 4, '#e86a8a'); rect(x + 9, y - 10, 3, 5, '#e86a8a'); }
+    else if (h === 4) { rect(x + 4, y - 3, 7, 3, '#f0d8c0'); rect(x + 5, y - 4, 5, 1, '#f0d8c0'); rect(x + 7, y - 3, 1, 3, '#c8a888'); }
+    else if (h === 7) { rect(x + 7, y - 4, 2, 4, '#f0a050'); rect(x + 5, y - 2, 6, 2, '#f0a050'); }
   } else if (d === 'fern') {                       // Dino-Insel: Farne und ab und zu ein Knochen
     const h = hash(c + 23) % 9;
     if (h === 0) { rect(x + 7, y - 9, 2, 9, '#3a7a24'); rect(x + 2, y - 8, 5, 2, '#5aaa3a'); rect(x + 9, y - 8, 5, 2, '#5aaa3a'); rect(x + 3, y - 4, 4, 2, '#5aaa3a'); rect(x + 9, y - 4, 4, 2, '#5aaa3a'); }
@@ -4445,7 +4508,8 @@ function drawEnemies() {
   for (const e of enemies) {
     if (!e.active || e.x > camX + VW + 8 || e.x + e.w < camX - 8) continue;
     const fl = e.flash > 0;
-    if (G.mode === 'space' && G.world === 11 && drawDinoEnemy(e, fl)) continue;   // Teil 12: Gegner sehen aus wie Dinos
+    if (G.mode === 'space' && G.world === 11 && drawDinoEnemy(e, fl)) continue;
+    if (isSea() && drawSeaEnemy(e, fl)) continue;   // Teil 14: Gegner sehen aus wie Meerestiere   // Teil 12: Gegner sehen aus wie Dinos
     if (e.type === 'zombie' && e.state !== 'out') {
       const fy = e.y + e.h, sx = Math.round(e.x - camX);
       if (e.state === 'rise') {
@@ -4876,6 +4940,7 @@ function drawBoss(b) {
   if (b.kind === 'discoboss') { drawDiscoBoss(b, fl); return; }
   if (b.kind === 'bull') { drawBullBoss(b, fl); return; }
   if (b.kind === 'trike' || b.kind === 'rex') { drawDinoBoss(b, fl); return; }
+  if (b.kind === 'crab' || b.kind === 'octo') { drawSeaBoss(b, fl); return; }
   if (b.kind === 'witchboss') { drawWitchBoss(b, fl); return; }
   if (b.kind === 'dracula') { drawDracula(b, fl); return; }
   if (b.kind === 'champ') {
@@ -5024,7 +5089,7 @@ function drawShots() {
         break;
       }
       case 'potion': drawPotion(x, y, s.c); break;
-      case 'bone': rect(x + 1, y + 1, 6, 2, '#f4f0e0'); rect(x, y, 2, 4, '#f4f0e0'); rect(x + 6, y, 2, 4, '#f4f0e0'); break;
+      case 'bone': if (isSea()) { rect(x, y, 8, 4, '#f0c8b0'); rect(x + 1, y - 1, 6, 1, '#f0c8b0'); rect(x + 2, y, 1, 4, '#c89880'); rect(x + 5, y, 1, 4, '#c89880'); break; } rect(x + 1, y + 1, 6, 2, '#f4f0e0'); rect(x, y, 2, 4, '#f4f0e0'); rect(x + 6, y, 2, 4, '#f4f0e0'); break;
       case 'fruit':
         rect(x + 1, y, 4, 6, s.c); rect(x, y + 1, 6, 4, s.c); rect(x + 1, y + 1, 2, 2, '#ffffff'); rect(x + 3, y - 1, 2, 1, '#3f9a2e');
         break;
@@ -5189,6 +5254,7 @@ function drawPotion(x, y, c) {
 function drawCoins() {
   for (const c of L.coins) {
     if (c.taken || c.x < camX - 10 || c.x > camX + VW + 10) continue;
+    if (isSea()) { const bob = Math.round(Math.sin(G.t * 3 + c.x) * 1); rect(c.x - camX + 1, c.y + 2 + bob, 6, 6, '#f4f4ff'); rect(c.x - camX + 2, c.y + 1 + bob, 4, 8, '#f4f4ff'); rect(c.x - camX + 2, c.y + 2 + bob, 2, 2, '#ffffff'); rect(c.x - camX + 5, c.y + 6 + bob, 1, 2, '#c8c8e0'); continue; }   // Perlen
     if (G.mode === 'space' && G.world === 9) { drawCandy(c.x - camX, c.y + 1 + Math.round(Math.sin(G.t * 3 + c.x) * 1), hash(c.x)); continue; }
     const k = Math.abs(Math.cos(G.t * 3 + c.x * 0.05)), w = Math.max(1, Math.round(6 * k));
     ctx.drawImage(SPR_COIN, Math.round(c.x - camX + (6 - w) / 2), c.y + Math.round(Math.sin(G.t * 3 + c.x) * 1), w, 8);
@@ -5445,6 +5511,7 @@ function render() {
   if (G.state === 'part11') { drawPart11(); return; }
   if (G.state === 'part12') { drawPart12(); return; }
   if (G.state === 'part13') { drawPart13(); return; }
+  if (G.state === 'part14') { drawPart14(); return; }
   if (G.state === 'dr') { drawDR(); return; }
   if (G.state === 'part11b') { drawPart11b(); return; }
   if (G.state === 'part11c') { drawPart11c(); return; }
@@ -5467,7 +5534,7 @@ function render() {
     text(big, VW / 2, 74, 16, '#f08a1c', 'center', '#3a1a05');
     text(sub, VW / 2, 98, 8, '#fff7e0', 'center');
     if (G.mode === 'rush') text('PRO BESIEGTEM ENDGEGNER: +2 LEBEN', VW / 2, 112, 8, '#ff8a8a', 'center');
-    if (G.mode === 'space' && !L.def.boss) text(L.def.dino ? DINO_INFO[G.level][1] : L.def.ft ? FT_INFO[G.level][1] : L.def.hw ? HW_INFO[G.level][1] : L.def.rmh ? RMH_INFO[G.level][1] : L.def.sudpol ? SUDPOL_INFO[G.level][1] : L.def.storm ? 'STEINHAGEL! 5-MAL SO VIELE STEINE!' : L.def.saturn ? 'PARCOURS! DOPPELT SO VIEL STEINSCHLAG!' : L.def.tower ? (P.jet ? 'KLETTERE NACH OBEN! DEIN JETPACK HILFT!' : 'KLETTERE NACH OBEN! HOL DIR DAS JETPACK!') : 'SCHWERELOS: DU SPRINGST GANZ HOCH!', VW / 2, 112, 8, '#9ad0ff', 'center');
+    if (G.mode === 'space' && !L.def.boss) text(L.def.sea ? SEA_INFO[G.level][1] : L.def.dino ? DINO_INFO[G.level][1] : L.def.ft ? FT_INFO[G.level][1] : L.def.hw ? HW_INFO[G.level][1] : L.def.rmh ? RMH_INFO[G.level][1] : L.def.sudpol ? SUDPOL_INFO[G.level][1] : L.def.storm ? 'STEINHAGEL! 5-MAL SO VIELE STEINE!' : L.def.saturn ? 'PARCOURS! DOPPELT SO VIEL STEINSCHLAG!' : L.def.tower ? (P.jet ? 'KLETTERE NACH OBEN! DEIN JETPACK HILFT!' : 'KLETTERE NACH OBEN! HOL DIR DAS JETPACK!') : 'SCHWERELOS: DU SPRINGST GANZ HOCH!', VW / 2, 112, 8, '#9ad0ff', 'center');
     if (L.def.boss && (G.mode === 'story' || G.mode === 'space')) text(`ENDGEGNER: ${[].concat(L.def.boss).map(k => BOSS_INFO[k].name).join(' + ')}`, VW / 2, 112, 8, '#ff8a6a', 'center');
     text(`VIEL GLÜCK, ${G.name.toUpperCase()}!`, VW / 2, 130, 8, '#ffd23f', 'center');
   } else if (G.state === 'play' && G.arena && G.bossIntroT > 0 && G.mode === 'versus') {
@@ -5488,6 +5555,8 @@ function render() {
     drawResult();
   } else if (G.state === 'over' && G.run) {
     drawRunResult();
+  } else if (G.state === 'win' && G.mode === 'space' && G.world === 12) {
+    centerPanel([['TIEFSEE GESCHAFFT!', 16, '#5ac8ff'], [`${G.name.toUpperCase()} HAT KRAKE OLGA BESIEGT!`, 8, '#fff7e0'], [`PUNKTE ${G.score}   PERLEN ${G.coins}`, 8, '#fff'], ['', 8, '#fff'], ['ENTER = ZURÜCK IN DIE TIEFSEE', 8, '#6dd64a']]);
   } else if (G.state === 'win' && G.mode === 'space' && G.world === 11) {
     centerPanel([['DINO-INSEL GESCHAFFT!', 16, '#6dd64a'], [`${G.name.toUpperCase()} HAT KÖNIG REX BESIEGT!`, 8, '#fff7e0'], [`PUNKTE ${G.score}   MÜNZEN ${G.coins}`, 8, '#fff'], ['', 8, '#fff'], ['ENTER = ZURÜCK ZUR DINO-INSEL', 8, '#6dd64a']]);
   } else if (G.state === 'win' && G.mode === 'space' && G.world === 10) {
@@ -7345,6 +7414,7 @@ function openPart13() {
 }
 function part13Click(pt) {
   if (inBox(pt, PORTAL_BTN)) { openPart12(); return; }
+  if (inBox(pt, SEA_DOOR)) { openPart14(); return; }
   const i = DR_BTNS.findIndex(bt => inBox(pt, bt));
   if (i >= 0) playDR(i);
 }
@@ -7513,6 +7583,7 @@ function drawPart13() {
   else text('KLICK ODER 1-5 = RITT STARTEN', VW / 2, 94, 8, '#3a1a05', 'center', null);
   text('LEERTASTE = SPRINGEN · ÜBER ALLE HINDERNISSE!', VW / 2, 106, 8, '#3a1a05', 'center', null);
   drawPortal(PORTAL_BTN, '12', 'TEIL 12');
+  drawSeaDoor();
   text('PORTAL = TEIL 12 · H = TEIL 1', VW / 2, 212, 8, '#fff7e0', 'center', '#000');
 }
 function drawDRDoor() {                                                   // Dino-Fußabdruck „13“ auf der Teil-12-Seite
@@ -7521,6 +7592,148 @@ function drawDRDoor() {                                                   // Din
   rect(cx - 14, b.y + 4, 7, 10, '#5a3a1e'); rect(cx - 3, b.y, 7, 12, '#5a3a1e'); rect(cx + 8, b.y + 4, 7, 10, '#5a3a1e');
   text('13', cx + 1, b.y + 22, 8, '#ffd23f', 'center', null);
   text('TEIL 13', cx, b.y + b.h + 2, 8, '#ffd23f', 'center', '#000');
+}
+// ---------- Teil 14: Zeichnen (Unterwasser, Meerestiere, Bosse, Seite)
+function drawSeaBG(cam) {
+  const kind = L.def.bg, deep = kind === 'deep' || kind === 'grotto';
+  const top = deep ? '#0a1a3a' : kind === 'wreck' || kind === 'city' ? '#1a4a6a' : '#2a8ab8', bot = deep ? '#02060e' : '#0a2a4a';
+  for (let i = 0; i < 14; i++) rect(0, i * VH / 14, VW, Math.ceil(VH / 14) + 1, lerpColor(top, bot, i / 13));
+  if (!deep) { ctx.globalAlpha = 0.08; for (let k = 0; k < 5; k++) { const x = ((k * 97 - cam * 0.1) % 480 + 480) % 480 - 60; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 24, 0); ctx.lineTo(x + 70, VH); ctx.lineTo(x + 40, VH); ctx.closePath(); ctx.fill(); } ctx.globalAlpha = 1; }   // Lichtstrahlen von oben (ruhig)
+  // Felsen und Hügel am Meeresgrund
+  for (let x = 0; x < VW; x += 2) { const wx = x + cam * 0.2, h = 56 + 14 * Math.sin(wx * 0.014) + 8 * Math.sin(wx * 0.035); rect(x, VH - h, 2, h, deep ? '#0a1424' : '#1a4a5a'); }
+  for (let i = -1; i < 9; i++) {
+    const base = Math.floor(cam * 0.45 / 56) + i, x = Math.round(base * 56 - cam * 0.45), hh = 30 + hash(base) % 34;
+    if (kind === 'wreck' && hash(base) % 4 === 0) { rect(x, VH - 70, 40, 24, '#3a2a1a'); rect(x + 4, VH - 76, 3, 30, '#3a2a1a'); rect(x + 6, VH - 66, 6, 6, '#14141c'); rect(x + 20, VH - 66, 6, 6, '#14141c'); continue; }   // Wrackteile
+    if (kind === 'city' && hash(base) % 3 === 0) { rect(x + 8, VH - 40 - hh, 8, hh + 40, '#5a6a7a'); rect(x + 4, VH - 44 - hh, 16, 4, '#6a7a8a'); rect(x + 30, VH - 30 - hh / 2, 8, hh / 2 + 30, '#5a6a7a'); continue; }   // Säulen
+    const sway = Math.sin(G.t * 0.8 + base) * 3;                       // Seegras wiegt sich langsam
+    for (let k = 0; k < hh; k += 4) rect(x + 20 + Math.sin(k * 0.15 + G.t * 0.8 + base) * 3 * (k / hh), VH - 30 - k, 3, 4, deep ? '#1a3a2a' : kind === 'kelp' ? '#3a8a3a' : '#2a7a4a');
+    if (!deep && hash(base + 7) % 3 === 0) { const cc = ['#e86a8a', '#f0a050', '#c86ad8'][hash(base) % 3]; rect(x + 34, VH - 44, 4, 14, cc); rect(x + 30, VH - 50, 4, 10, cc); rect(x + 38, VH - 52, 4, 12, cc); rect(x + 30 + sway * 0, VH - 54, 3, 4, cc); }   // Korallen
+  }
+  if (kind === 'jelly' || deep) for (let i = 0; i < 6; i++) {         // Quallen bzw. Leuchtfische schweben langsam im Hintergrund
+    const x = ((i * 73 - cam * 0.3) % 440 + 440) % 440 - 30, y = 40 + (i * 37) % 100 + Math.sin(G.t * 0.7 + i) * 6;
+    if (deep) { rect(x, y, 6, 3, '#2a4a6a'); rect(x + 6, y - 1, 3, 5, '#2a4a6a'); ctx.globalAlpha = 0.5; rect(x - 2, y - 2, 2, 2, '#9af0ff'); ctx.globalAlpha = 1; }
+    else { ctx.globalAlpha = 0.6; rect(x, y, 12, 7, '#e8a8e8'); rect(x + 2, y - 2, 8, 2, '#e8a8e8'); for (let k = 0; k < 4; k++) rect(x + 1 + k * 3, y + 7, 1, 6 + (k % 2) * 3, '#e8a8e8'); ctx.globalAlpha = 1; }
+  }
+  for (let i = 0; i < 14; i++) { const x = (i * 61 + 13) % VW, y = VH - ((G.t * (10 + i % 5) + i * 37) % (VH + 20)); rect(x + Math.sin(G.t + i) * 2, y, 2, 2, 'rgba(200,240,255,.45)'); }   // Luftblasen steigen langsam
+}
+function drawSeaEnemy(e, fl) {                                          // Meerestier-Aussehen für die Gegner in Teil 14
+  const sx = Math.round(e.x - camX), y = Math.round(e.y), f = e.face, step = Math.floor(e.anim) % 2;
+  const P2 = (sw, x, yy, w, h, c) => lpx(sx, y, sw, f, x, yy, w, h, fl ? '#ffffff' : c);
+  if (e.type === 'hbat') {                                             // Fisch
+    const c = '#f0a030', tail = Math.sin(G.t * 6 + e.x) > 0 ? 0 : 1;
+    P2(12, 2, 1, 9, 6, c); P2(12, -2, 1 + tail, 4, 5 - tail * 2, '#d88020'); P2(12, 8, 2, 2, 2, '#ffffff'); P2(12, 9, 2, 1, 1, '#14141c'); P2(12, 4, 0, 4, 1, '#d88020');
+    return true;
+  }
+  if (e.type === 'cow') {                                              // Krabbe (rot, Scheren)
+    const c = '#e8483a', d = '#a82a20';
+    P2(26, 4, 8, 18, 8, c); P2(26, 6, 6, 14, 2, c); P2(26, 9, 4, 2, 3, '#ffffff'); P2(26, 15, 4, 2, 3, '#ffffff'); P2(26, 9, 5, 1, 1, '#14141c'); P2(26, 15, 5, 1, 1, '#14141c');
+    const open = e.mouthT > 0 || e.chargeT > 0 ? 2 : 0;
+    P2(26, 0, 4 - open, 4, 4, c); P2(26, 22, 4 - open, 4, 4, c); P2(26, 0, 9, 4, 2, d); P2(26, 22, 9, 4, 2, d);
+    P2(26, 5, 16, 2, 2 - step, d); P2(26, 10, 16, 2, 1 + step, d); P2(26, 15, 16, 2, 2 - step, d); P2(26, 20, 16, 2, 1 + step, d);
+    return true;
+  }
+  if (e.type === 'skel') {                                             // Hummer (wirft Muscheln)
+    const c = '#c84a3a';
+    P2(12, 2, 6, 8, 10, c); P2(12, 3, 2, 6, 5, c); P2(12, 8, 3, 2, 2, '#14141c'); P2(12, 9, -2, 1, 5, '#a83a2a'); P2(12, 10, 0, 4, 4, c);
+    P2(12, 3, 16, 2, 2 - step, '#a83a2a'); P2(12, 7, 16, 2, 1 + step, '#a83a2a'); P2(12, -1, 12, 3, 4, c);
+    return true;
+  }
+  if (e.type === 'sheep') {                                            // Seepferdchen
+    const c = '#f0c838';
+    P2(14, 5, 0, 6, 5, c); P2(14, 10, 2, 3, 2, c); P2(14, 7, 1, 1, 1, '#14141c'); P2(14, 4, 5, 6, 5, c); P2(14, 5, 10, 4, 2, c); P2(14, 7, 11, 3, 1, '#d8a828'); P2(14, 3, 1, 2, 4, '#d8a828');
+    return true;
+  }
+  if (e.type === 'pump') {                                             // Kugelfisch mit Stacheln
+    const c = '#e8d070', d = '#a8902a';
+    P2(12, 1, 5, 11, 10, c); P2(12, 3, 3, 7, 2, c); P2(12, 8, 7, 2, 2, '#14141c'); P2(12, 11, 10, 2, 1, d);
+    P2(12, 0, 4, 1, 1, d); P2(12, 6, 2, 1, 1, d); P2(12, 12, 6, 1, 1, d); P2(12, 0, 13, 1, 1, d); P2(12, 6, 15, 1, 1, d); P2(12, -1, 8 + step, 2, 3, d);
+    return true;
+  }
+  return false;
+}
+function drawSeaBoss(b, fl) {
+  const sx = Math.round(b.x - camX), y = Math.round(b.y), f = b.face, dz = b.state === 'dizzy', rage = b.hp <= b.maxHp / 2, run = b.state === 'charge' ? Math.floor(G.t * 10) % 2 : 0;
+  if (b.kind === 'crab') {                                             // Krabben-König mit Krone und Riesenscheren
+    const c = fl ? '#ffffff' : '#d83a2a', d = fl ? '#ffffff' : '#9a2018';
+    const L4 = (x, yy, w, h, cc) => lpx(sx, y, 46, f, x, yy, w, h, cc);
+    L4(6, 10, 34, 14, c); L4(10, 6, 26, 6, c); L4(14, 0, 3, 7, d); L4(28, 0, 3, 7, d);
+    L4(12, -2, 6, 4, '#ffffff'); L4(26, -2, 6, 4, '#ffffff');
+    L4(18, -8, 12, 3, '#ffd23f'); L4(18, -11, 2, 3, '#ffd23f'); L4(23, -12, 2, 4, '#ffd23f'); L4(28, -11, 2, 3, '#ffd23f');   // Krone
+    const open = b.state === 'chargePrep' || b.state === 'charge' ? 3 : 0;
+    L4(36, 4 - open, 10, 8, c); L4(36, 13, 10, 5, c); L4(-2, 4 - open, 10, 8, c); L4(-2, 13, 10, 5, c);   // Scheren
+    for (let k = 0; k < 4; k++) L4(8 + k * 8, 24, 3, 6 - (k % 2 ? run : 1 - run) * 2, d);
+    if (dz) { L4(13, -1, 3, 3, '#ffffff'); L4(27, -1, 3, 3, '#ffffff'); stars(b.x + b.w / 2, y - 16, 18); timerBar(b.x - 4, y - 20, b.w + 8, b.t / 3.4); }
+    else { const eye = rage || b.state === 'chargePrep' || b.state === 'charge' ? '#e8312f' : '#14141c'; L4(14, -1, 2, 2, eye); L4(28, -1, 2, 2, eye); }
+  } else {                                                              // Krake Olga: lila Riesenkrake mit acht Armen
+    const c = fl ? '#ffffff' : '#9a4ac8', d = fl ? '#ffffff' : '#6a2a9a';
+    const L5 = (x, yy, w, h, cc) => lpx(sx, y, 50, f, x, yy, w, h, cc);
+    L5(8, 0, 34, 26, c); L5(12, -4, 26, 6, c); L5(14, 6, 6, 3, '#e8b8f8'); L5(30, 4, 5, 3, '#e8b8f8');
+    for (let k = 0; k < 6; k++) { const wv = Math.round(Math.sin(G.t * 2 + k) * 2); L5(4 + k * 7, 26, 5, 14 + wv, d); L5(4 + k * 7 + (k % 2 ? 2 : -2), 38 + wv, 4, 4, d); }   // Arme (schwingen langsam)
+    for (let k = 0; k < 3; k++) L5(6 + k * 14, 30, 2, 2, '#e8b8f8');
+    if (b.state === 'herd') L5(20, 18, 10, 5, '#3a1a4a');
+    if (dz) { L5(18, 10, 4, 4, '#ffffff'); L5(30, 10, 4, 4, '#ffffff'); stars(b.x + b.w / 2, y - 10, 20); timerBar(b.x - 4, y - 16, b.w + 8, b.t / 3.4); }
+    else { const eye = rage || b.state === 'chargePrep' || b.state === 'charge' ? '#ffd23f' : '#14141c'; L5(18, 10, 5, 5, '#ffffff'); L5(30, 10, 5, 5, '#ffffff'); L5(20, 12, 2, 2, eye); L5(32, 12, 2, 2, eye); }
+  }
+  if (b.state === 'chargePrep' && Math.floor(G.t * 3) % 2) text('!', b.x + b.w / 2 - camX, y - 26, 16, '#ff5a4a', 'center');
+}
+const SEA_BTNS = SEA_NAMES.map((n, i) => ({ x: 62 + (i % 5) * 54, y: 58 + Math.floor(i / 5) * 26, w: 48, h: 23 }));
+const SEA_DOOR = { x: 8, y: 72, w: 46, h: 40 };                         // Anker „14“ auf der Teil-13-Seite
+function openPart14() {
+  G.state = 'part14'; G.stateT = 0; G.mode = 'story';
+  form.hidden = true; homeBtn.hidden = false;
+  G.p14 = { x: 100, vx: 0, face: 1, lock: null };
+  [330, 392, 440, 523, 440].forEach((f, i) => tone(f, f * 1.02, 0.18, 'sine', 0.05, i * 0.13));
+}
+function updatePart14() {
+  const S = G.p14; if (!S) return;
+  const ax = (K.right ? 1 : 0) - (K.left ? 1 : 0);
+  if (ax) S.face = ax;
+  S.vx = clamp(S.vx + ax * 0.15, -1.6, 1.6) * (ax ? 1 : 0.88);
+  S.x = clamp(S.x + S.vx, 20, VW - 20);
+}
+function part14Click(pt) {
+  if (inBox(pt, PORTAL_BTN)) { openPart13(); return; }
+  const i = SEA_BTNS.findIndex(bt => inBox(pt, bt));
+  if (i >= 0) playSea(i);
+}
+function drawSeaDoor() {                                                 // Anker mit „14“
+  const b = SEA_DOOR, cx = b.x + b.w / 2, c = '#3a6a9a';
+  rect(cx - 2, b.y + 4, 4, 30, c); rect(cx - 8, b.y + 8, 16, 3, c); rect(cx - 4, b.y, 8, 6, c); rect(cx - 2, b.y + 2, 4, 2, '#f0b860');
+  rect(cx - 14, b.y + 26, 4, 8, c); rect(cx + 10, b.y + 26, 4, 8, c); rect(cx - 12, b.y + 32, 24, 4, c); rect(cx - 16, b.y + 24, 4, 4, c); rect(cx + 12, b.y + 24, 4, 4, c);
+  text('14', cx + 1, b.y + 13, 8, '#ffffff', 'center', '#14304a');
+  text('TEIL 14', cx, b.y + b.h + 2, 8, '#5ac8ff', 'center', '#000');
+}
+function drawPart14() {
+  const S = G.p14 || { x: 100, face: 1, vx: 0 };
+  for (let i = 0; i < 14; i++) rect(0, i * VH / 14, VW, Math.ceil(VH / 14) + 1, lerpColor('#2a8ab8', '#0a2a4a', i / 13));
+  ctx.globalAlpha = 0.08; for (let k = 0; k < 4; k++) { const x = k * 110 + 20; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 26, 0); ctx.lineTo(x + 80, VH); ctx.lineTo(x + 50, VH); ctx.closePath(); ctx.fill(); } ctx.globalAlpha = 1;
+  for (let k = 0; k < 8; k++) { const x = 16 + k * 50; for (let j = 0; j < 30; j += 4) rect(x + Math.sin(j * 0.15 + G.t * 0.8 + k) * 3 * (j / 30), 184 - j, 3, 4, '#2a7a4a'); }
+  for (let k = 0; k < 5; k++) { const x = 40 + k * 76, cc = ['#e86a8a', '#f0a050', '#c86ad8'][k % 3]; rect(x, 168, 4, 16, cc); rect(x - 4, 162, 4, 10, cc); rect(x + 4, 160, 4, 12, cc); }
+  rect(0, 184, VW, 40, '#d8c890'); rect(0, 184, VW, 3, '#e8d8a8');
+  // Wal schwimmt ruhig im Hintergrund
+  const wx = 250 + Math.sin(G.t * 0.3) * 20, wy = 128 + Math.sin(G.t * 0.6) * 3;
+  rect(wx, wy, 60, 18, '#3a5a8a'); rect(wx + 4, wy - 4, 48, 6, '#3a5a8a'); rect(wx + 6, wy + 12, 46, 6, '#c8d8e8'); rect(wx + 50, wy + 4, 3, 3, '#14141c'); rect(wx - 12, wy + 2, 14, 6, '#3a5a8a'); rect(wx - 16, wy - 2, 6, 6, '#3a5a8a'); rect(wx - 16, wy + 8, 6, 6, '#3a5a8a');
+  for (let i = 0; i < 10; i++) { const x = (i * 41 + 9) % VW, y = 184 - ((G.t * (10 + i % 4) + i * 29) % 190); rect(x, y, 2, 2, 'rgba(200,240,255,.5)'); }
+  const moving = Math.abs(S.vx) > 0.2, fr = moving ? ['walk1', 'idle', 'walk2', 'idle'][Math.floor(G.t * 8) % 4] : 'idle';
+  drawBig(SPR_PLAYER[fr], S.x - 16, 184 - 38, 2, S.face);
+  ctx.globalAlpha = 0.3; ctx.fillStyle = '#cfefff'; ctx.beginPath(); ctx.arc(S.x, 184 - 26, 16, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 0.7; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1; ctx.stroke(); ctx.globalAlpha = 1;   // Taucherhelm
+  text('KÜRBIS-ABENTEUER', VW / 2 + 1, 10, 16, '#f08a1c', 'center', '#3a1a05');
+  text('TEIL 14', VW / 2, 30, 16, '#5ac8ff', 'center', '#0a2a4a');
+  text('DIE TIEFSEE', VW / 2, 48, 8, '#fff7e0', 'center', '#000');
+  const un = seaUnlocked(), lock = S.lock && G.t - S.lock.t < 1.5 ? S.lock : null;
+  SEA_BTNS.forEach((bt, i) => {
+    const open = i < un, boss = i === 4 || i === 9, best = (store.best || {})['T' + (i + 1)];
+    rect(bt.x, bt.y, bt.w, bt.h, open ? 'rgba(10,40,70,.92)' : 'rgba(20,30,40,.85)');
+    const e = open ? (boss ? '#ffd23f' : '#5ac8ff') : '#4a5a6a';
+    rect(bt.x, bt.y, bt.w, 1, e); rect(bt.x, bt.y + bt.h - 1, bt.w, 1, e); rect(bt.x, bt.y, 1, bt.h, e); rect(bt.x + bt.w - 1, bt.y, 1, bt.h, e);
+    text(String(i + 1), bt.x + bt.w / 2, bt.y + 2, 8, open ? '#ffffff' : '#6a7a88', 'center', null);
+    text(!open ? 'ZU' : best && best.length ? `RANG ${best[0].r}` : boss ? 'BOSS' : 'LEVEL', bt.x + bt.w / 2, bt.y + 12, 8, open ? '#cfefff' : '#6a7a88', 'center', null);
+  });
+  if (lock) text(`ERST LEVEL ${lock.i} SCHAFFEN!`, VW / 2, 112, 8, '#ff8a6a', 'center', '#000');
+  else if (store.seaWon) text('KRAKE OLGA IST BESIEGT! ★', VW / 2, 112, 8, '#ffd23f', 'center', '#000');
+  else text('KLICK ODER 1-9, 0 = LEVEL · LEERTASTE = SCHWIMMEN', VW / 2, 112, 8, '#fff7e0', 'center', '#000');
+  drawPortal(PORTAL_BTN, '13', 'TEIL 13');
+  text('PORTAL = TEIL 13 · A/D = LAUFEN · H = TEIL 1', VW / 2, 212, 8, '#fff7e0', 'center', '#000');
 }
 // ============================================================ Teil 11: Kürbis-Cartoon (inspiriert von Cuphead)
 // Alter Zeichentrick-Stil aus den 1930ern: du schießt mit Kürbiskernen (E halten), springst in der Luft auf Pinkes (Parry),
