@@ -1,6 +1,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Kürbis-Abenteuer</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kürbis">
+<meta name="theme-color" content="#16101d">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -126,18 +131,41 @@ kbd {
   .start select { max-width: 44vw; }
 }
 @media (pointer: coarse) and (orientation: landscape) {
-  .wrap { padding-block: 6px; }
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  .wrap { padding: 0; }
   header { display: none; }
-  .cab { max-width: min(1152px, calc((100svh - 28px) * 1.7143), calc(100vw - 272px)); }
-  /* Buttons links und rechts neben dem Spielfeld (je 2 Spalten) */
-  .touch { position: fixed; inset: auto 0 8px 0; padding: 0 max(8px, env(safe-area-inset-right, 0px)) 0 max(8px, env(safe-area-inset-left, 0px)); pointer-events: none; z-index: 5; align-items: flex-end; }
+  /* Spielfeld füllt den ganzen Bildschirm, die Buttons liegen halbdurchsichtig darüber */
+  .screen { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; max-width: none; aspect-ratio: auto; border: 0; box-shadow: none; }
+  .screen:focus-within { box-shadow: none; }
+  canvas { object-fit: contain; }
+  .start { max-width: calc(100vw - 310px); font-size: 11px; padding: 5px 8px; gap: 4px 8px; bottom: 3%; }
+  .start select { max-width: 100%; }
+  .touch { position: fixed; inset: auto 0 max(6px, env(safe-area-inset-bottom, 0px)) 0; padding: 0 max(8px, env(safe-area-inset-right, 0px)) 0 max(8px, env(safe-area-inset-left, 0px)); pointer-events: none; z-index: 5; align-items: flex-end; }
   .touch > .grp { pointer-events: auto; width: 124px; gap: 8px; }
   .touch .move { width: 124px; gap: 8px; justify-content: space-between; }
   .touch #bDown { order: -1; margin: 0 35px; }
-  .touch button { width: 54px; height: 54px; opacity: .85; }
+  .touch button { width: 56px; height: 56px; background: rgba(36,26,46,.42); border-color: rgba(255,255,255,.28); color: rgba(245,234,219,.92); }
+  .touch button.act { border-color: rgba(240,138,28,.75); color: rgba(255,210,63,.95); }
   .touch .nums { width: 124px; gap: 4px; justify-content: space-between; }
   .touch .nums button { width: 28px; height: 32px; font-size: 13px; }
 }
+/* Vollbild-Knopf im Spiel und Anleitung fürs iPhone */
+.fsgame {
+  display: none; position: absolute; z-index: 6; place-items: center; padding: 0;
+  left: max(6px, env(safe-area-inset-left, 0px)); top: max(6px, env(safe-area-inset-top, 0px));
+  width: 40px; height: 40px; border-radius: 8px; font-size: 20px; color: var(--ember);
+  background: rgba(18,10,24,.55); border: 2px solid rgba(240,138,28,.75);
+}
+.fshint {
+  position: fixed; inset: 0; z-index: 7; display: grid; place-items: center; padding: 12px;
+  background: rgba(10,6,14,.8); font-size: 14px; line-height: 1.4;
+}
+.fshint > div { max-width: 420px; max-height: 100%; overflow: auto; background: var(--panel); border: 2px solid var(--pumpkin); border-radius: 6px; padding: 12px 16px; }
+.fshint h2 { margin: 0 0 6px; font-family: var(--f-display); font-size: 20px; color: var(--pumpkin); }
+.fshint ol { margin: 0 0 8px; padding-left: 1.3em; }
+.fshint p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+.fshint button { font-family: var(--f-pixel); font-size: 14px; color: #1a0d05; background: var(--ember); border: 2px solid var(--pumpkin); border-bottom-width: 4px; border-radius: 3px; padding: 4px 16px; }
+@media (pointer: coarse) and (orientation: landscape) { .fsgame { display: grid; } }
 button:focus-visible, canvas:focus-visible { outline: 3px solid var(--ember); outline-offset: 2px; }
 </style>
 
@@ -156,6 +184,7 @@ button:focus-visible, canvas:focus-visible { outline: 3px solid var(--ember); ou
       <button id="homeBtn" class="home" type="button" aria-label="Zum Hauptmenü" title="Hauptmenü (H)" hidden>
         <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="#ffd23f" d="M8 1 15 8H13V15H3V8H1Z"/><rect x="7" y="10" width="2" height="5" fill="#5a2a06"/><rect x="4" y="9" width="2" height="2" fill="#5a2a06"/><rect x="10" y="9" width="2" height="2" fill="#5a2a06"/></svg>
       </button>
+      <button id="fsGame" class="fsgame" type="button" aria-label="Vollbild" title="Vollbild">⛶</button>
       <form id="startForm" class="start" autocomplete="off">
         <label for="nameIn">Dein Name:</label>
         <input id="nameIn" maxlength="12" placeholder="z. B. Lu" spellcheck="false">
@@ -181,6 +210,18 @@ button:focus-visible, canvas:focus-visible { outline: 3px solid var(--ember); ou
       </form>
     </div>
     <p class="rotate-hint">Tipp: Halte dein Handy quer, dann wird das Spiel größer!</p>
+    <div id="fsHint" class="fshint" hidden>
+      <div>
+        <h2>Ganz großes Vollbild</h2>
+        <ol>
+          <li>Tippe in Safari auf <b>Teilen</b> (das Quadrat mit dem Pfeil nach oben).</li>
+          <li>Wähle <b>„Zum Home-Bildschirm“</b>.</li>
+          <li>Starte das Spiel über das neue <b>Kürbis-Symbol</b> – dann ist es ganz ohne Safari-Leisten!</li>
+        </ol>
+        <p>Achtung: Die Home-Bildschirm-App hat einen eigenen Spielstand.</p>
+        <button id="fsHintOk" type="button">OK</button>
+      </div>
+    </div>
     <div class="touch" id="touch">
       <div class="grp">
         <div class="grp move">
@@ -1500,18 +1541,37 @@ addEventListener('blur', () => { for (const k in K) K[k] = false; });
 // Vollbild
 const screenEl = document.getElementById('screen'), fsBtn = document.getElementById('fsBtn');
 const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+const fsGame = document.getElementById('fsGame'), fsHint = document.getElementById('fsHint');
+const touchUI = matchMedia('(pointer: coarse)');
+const isApp = () => navigator.standalone === true || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
+const canFull = () => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
 function toggleFull() {
   try {
     if (fsElement()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else if (!canFull()) { fsHint.hidden = false; return; }               // iPhone: geht nur über den Home-Bildschirm
     else {
-      const req = screenEl.requestFullscreen || screenEl.webkitRequestFullscreen;
-      const r = req && req.call(screenEl);
+      const el = touchUI.matches ? document.documentElement : screenEl;   // am Handy die ganze Seite, damit die Buttons sichtbar bleiben
+      const req = el.requestFullscreen || el.webkitRequestFullscreen;
+      const r = req && req.call(el);
       if (r && r.catch) r.catch(() => {});
     }
   } catch (e) { /* Vollbild nicht erlaubt */ }
   if (G.state !== 'title') cv.focus({ preventScroll: true });
 }
 fsBtn.addEventListener('click', toggleFull);
+fsGame.addEventListener('click', toggleFull);
+document.getElementById('fsHintOk').addEventListener('click', () => { fsHint.hidden = true; try { localStorage.setItem('kuerbis-fshint', '1'); } catch (e) { /* egal */ } });
+if (touchUI.matches && !canFull() && !isApp()) {                          // beim ersten Besuch am iPhone einmal zeigen
+  try { if (!localStorage.getItem('kuerbis-fshint')) fsHint.hidden = false; } catch (e) { /* egal */ }
+}
+(() => {                                                                  // Kürbis-Symbol für den Home-Bildschirm
+  const c = document.createElement('canvas'); c.width = c.height = 180;
+  const x = c.getContext('2d'), r = (a, b, w, h, col) => { x.fillStyle = col; x.fillRect(a, b, w, h); };
+  r(0, 0, 180, 180, '#16101d'); r(45, 44, 90, 112, '#f08a1c'); r(30, 56, 120, 88, '#f08a1c'); r(20, 70, 140, 60, '#f08a1c');
+  r(68, 46, 8, 108, '#c4620b'); r(104, 46, 8, 108, '#c4620b'); r(84, 18, 12, 30, '#3f7d20');
+  r(56, 78, 16, 16, '#3a1a05'); r(108, 78, 16, 16, '#3a1a05'); r(62, 116, 56, 10, '#3a1a05');
+  const l = document.createElement('link'); l.rel = 'apple-touch-icon'; l.href = c.toDataURL('image/png'); document.head.appendChild(l);
+})();
 
 // Ton an/aus
 const sndBtn = document.getElementById('sndBtn');
@@ -1539,7 +1599,8 @@ function goHome() {
   showTitle();
 }
 homeBtn.addEventListener('click', goHome);
-const fsLabel = () => { fsBtn.textContent = fsElement() ? '✕ Vollbild beenden' : '⛶ Vollbild'; };
+const fsLabel = () => { fsBtn.textContent = fsElement() ? '✕ Vollbild beenden' : '⛶ Vollbild'; fsGame.hidden = isApp() || !!fsElement(); };
+fsLabel();
 document.addEventListener('fullscreenchange', fsLabel);
 document.addEventListener('webkitfullscreenchange', fsLabel);
 
