@@ -116,7 +116,7 @@ kbd {
 .touch .nums button { width: 44px; height: 44px; font-size: 15px; }
 .rotate-hint { display: none; text-align: center; color: var(--muted); font-size: 13px; margin: 0; }
 @media (pointer: coarse) {
-  html, body { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  html, body { touch-action: pan-x pan-y; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   .touch { display: flex; flex-wrap: wrap; }
   .touch button { -webkit-touch-callout: none; }
   .keys, header p { display: none; }
@@ -131,7 +131,7 @@ kbd {
   .start select { max-width: 44vw; }
 }
 @media (pointer: coarse) and (orientation: landscape) {
-  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; touch-action: none; }
   .wrap { padding: 0; }
   header { display: none; }
   /* Spielfeld füllt den ganzen Bildschirm, die Buttons liegen halbdurchsichtig darüber */
@@ -1567,7 +1567,9 @@ if (touchUI.matches && !canFull() && !isApp()) {                          // bei
 }
 // Am Handy nicht zoomen (Doppeltippen, zwei Finger, Tippen ins Namensfeld)
 ['gesturestart', 'gesturechange', 'gestureend', 'dblclick'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
-document.addEventListener('touchmove', e => { if (e.touches.length > 1 || e.scale && e.scale !== 1) e.preventDefault(); }, { passive: false });
+['touchstart', 'touchmove'].forEach(t => document.addEventListener(t, e => { if (e.touches.length > 1 || e.scale && e.scale !== 1) e.preventDefault(); }, { passive: false }));
+let lastTouchEnd = 0;                                                     // schnelles Doppeltippen zoomt nicht
+document.addEventListener('touchend', e => { const now = performance.now(); if (now - lastTouchEnd < 350 && !e.target.closest('input, select')) e.preventDefault(); lastTouchEnd = now; }, { passive: false });
 (() => {                                                                  // Kürbis-Symbol für den Home-Bildschirm
   const c = document.createElement('canvas'); c.width = c.height = 180;
   const x = c.getContext('2d'), r = (a, b, w, h, col) => { x.fillStyle = col; x.fillRect(a, b, w, h); };
@@ -1597,6 +1599,7 @@ function goHome() {
   if (G.state === 'au') { openPart10(); return; }
   if (G.state === 'ch') { chMap(); return; }
   if (G.state === 'dr') { openPart13(); return; }
+  if (G.state === 'ld') { openPart16(); return; }
   if (G.mode === 'dragon' && G.state !== 'part3') { G.mode = 'story'; openPart3(); return; }
   if (G.mode === 'space' && G.state !== 'part4' && G.state !== 'part5') { G.mode = 'story'; if (G.world === 13) openPart15(); else if (G.world === 12) openPart14(); else if (G.world === 11) openPart12(); else if (G.world === 10) openPart10(); else if (G.world === 9) openPart8(); else if (G.world === 8) openPart9(); else if (G.world === 7) openPart7(); else if (G.world === 5) openPart5(); else openPart4(); return; }
   homeBtn.hidden = true;
@@ -1630,7 +1633,7 @@ function syncTouch() {                                                  // nur d
     nums: fight || (st === 'ch' && !plane),
     sup: play && !mc,
     e: play || st === 'au',
-    q: G.bow || fight || st === 'ch' || G.mode === 'versus' || mc,
+    q: (G.bow && st === 'play') || fight || st === 'ch' || G.mode === 'versus' || mc,
   };
   for (const [el, on] of [[TOUCH.down, show.down], [TOUCH.run, show.run], [TOUCH.nums, show.nums], [TOUCH.sup, show.sup], [TOUCH.e, show.e], [bQ, show.q]]) if (el.hidden === on) el.hidden = !on;
 }
@@ -1699,7 +1702,7 @@ const inBox = (pt, b) => pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y
 cv.addEventListener('pointermove', e => {
   const pt = canvasPoint(e);
   if (G.state === 'mc' && G.mc) { G.mc.mouse.x = pt.x; G.mc.mouse.y = pt.y; G.mc.mouse.moved = G.mc.time; cv.style.cursor = 'crosshair'; return; }
-  cv.style.cursor = (G.state === 'part5' && inBox(pt, ufoBox())) || G.state === 'part6' || G.state === 'part9' || G.state === 'part8' || G.state === 'part10' || G.state === 'part11' || G.state === 'part11b' || G.state === 'part12' || G.state === 'part13' || G.state === 'part14' || G.state === 'part15' || G.state === 'dr' || G.state === 'part11c' || (G.state === 'part7' && (inBox(pt, PORTAL_BTN) || inBox(pt, RMH_DOOR) || SUDPOL_BTNS.some(bt => inBox(pt, bt)))) || G.state.startsWith('fly') || (G.state === 'title' && inBox(pt, SUN_BTN)) || (G.state === 'part2' && inBox(pt, MOON_BTN)) || G.state === 'part2' || (G.state === 'part3' && (inBox(pt, PORTAL_BTN) || inBox(pt, PLANET_BTN))) || (G.state === 'part5' && (inBox(pt, PORTAL_BTN) || SATURN_BTNS.some(bt => inBox(pt, bt)))) || (G.state === 'part4' && (inBox(pt, PORTAL_BTN) || inBox(pt, SHOP_BTN) || inBox(pt, SATURN_BTN) || (G.space && G.space.shop) || SPACE_BTNS.some(bt => inBox(pt, bt)))) ? 'pointer' : '';
+  cv.style.cursor = (G.state === 'part5' && inBox(pt, ufoBox())) || G.state === 'part6' || G.state === 'part9' || G.state === 'part8' || G.state === 'part10' || G.state === 'part11' || G.state === 'part11b' || G.state === 'part12' || G.state === 'part13' || G.state === 'part14' || G.state === 'part15' || G.state === 'part16' || G.state === 'dr' || G.state === 'part11c' || (G.state === 'part7' && (inBox(pt, PORTAL_BTN) || inBox(pt, RMH_DOOR) || SUDPOL_BTNS.some(bt => inBox(pt, bt)))) || G.state.startsWith('fly') || (G.state === 'title' && inBox(pt, SUN_BTN)) || (G.state === 'part2' && inBox(pt, MOON_BTN)) || G.state === 'part2' || (G.state === 'part3' && (inBox(pt, PORTAL_BTN) || inBox(pt, PLANET_BTN))) || (G.state === 'part5' && (inBox(pt, PORTAL_BTN) || SATURN_BTNS.some(bt => inBox(pt, bt)))) || (G.state === 'part4' && (inBox(pt, PORTAL_BTN) || inBox(pt, SHOP_BTN) || inBox(pt, SATURN_BTN) || (G.space && G.space.shop) || SPACE_BTNS.some(bt => inBox(pt, bt)))) ? 'pointer' : '';
 });
 cv.addEventListener('pointerdown', e => {
   const pt = canvasPoint(e);
@@ -1717,6 +1720,7 @@ cv.addEventListener('pointerdown', e => {
   if (G.state === 'part13') { part13Click(pt); return; }
   if (G.state === 'part14') { part14Click(pt); return; }
   if (G.state === 'part15') { part15Click(pt); return; }
+  if (G.state === 'part16') { part16Click(pt); return; }
   if (G.state === 'dr') { press('jump'); return; }   // Klick = springen
   if (G.state === 'part11b') { part11bClick(pt); return; }
   if (G.state === 'part11c') { part11cClick(pt); return; }
@@ -4352,6 +4356,13 @@ function step() {
     case 'part15':
       if (pressed.enter) playMega();
       break;
+    case 'ld':
+      updateLD();
+      break;
+    case 'part16':
+      ['one', 'two', 'three', 'four', 'five'].forEach((k, i) => { if (pressed[k] && G.state === 'part16') playLD(i); });
+      if (pressed.enter && G.state === 'part16') playLD(ldUnlocked() - 1);
+      break;
     case 'part14':
       updatePart14();
       ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'].forEach((k, i) => { if (pressed[k] && G.state === 'part14') playSea(i); });
@@ -5721,6 +5732,8 @@ function render() {
   if (G.state === 'part13') { drawPart13(); return; }
   if (G.state === 'part14') { drawPart14(); return; }
   if (G.state === 'part15') { drawPart15(); return; }
+  if (G.state === 'part16') { drawPart16(); return; }
+  if (G.state === 'ld') { drawLD(); return; }
   if (G.state === 'dr') { drawDR(); return; }
   if (G.state === 'part11b') { drawPart11b(); return; }
   if (G.state === 'part11c') { drawPart11c(); return; }
@@ -7966,6 +7979,7 @@ function openPart15() {
 }
 function part15Click(pt) {
   if (inBox(pt, PORTAL_BTN)) { openPart14(); return; }
+  if (inBox(pt, LD_DOOR)) { openPart16(); return; }
   playMega();
 }
 function drawMegaDoor() {
@@ -7993,7 +8007,272 @@ function drawPart15() {
   text('DU HAST 10 LEBEN', VW / 2, 76, 8, '#ff8a8a', 'center', '#000');
   text(store.megaWon ? 'DU HAST IHN BESIEGT! ★ NOCHMAL? ENTER' : 'ENTER ODER KLICK = KAMPF STARTEN', VW / 2, 100, 8, Math.floor(G.t * 1.5) % 2 ? '#ffe0a0' : '#ffffff', 'center', '#000');
   drawPortal(PORTAL_BTN, '14', 'TEIL 14');
+  drawLDDoor();
   text('PORTAL = TEIL 14 · H = TEIL 1', VW / 2, 212, 8, '#fff7e0', 'center', '#000');
+}
+// ============================================================ Teil 16: Der Level-Teufel (nach „Level Devil“: nichts ist, wie es scheint – sterben, merken, nochmal!)
+const LD_G = 0.35, LD_JUMP = 5.8, LD_SP = 1.8, LD_FLOOR = 192;
+const LD_LV = [
+  { name: 'DER BODEN LÜGT', sky: ['#f8c88a', '#e8904a'], blk: '#5a2412', top: '#8a4026', deco: '#f0a868', build: ldLevel1 },
+  { name: 'VORSICHT, DECKE!', sky: ['#9ae0d0', '#3a9a90'], blk: '#14403c', top: '#2a6a62', deco: '#7ac8bc', build: ldLevel2 },
+  { name: 'DIE FLÜCHTENDE TÜR', sky: ['#d8b8f0', '#8a5ac0'], blk: '#3a1a5a', top: '#5a3a80', deco: '#bc98e0', build: ldLevel3 },
+  { name: 'SÄGEN UND FEDERN', sky: ['#c8e890', '#6aa83a'], blk: '#2a4a14', top: '#4a7a24', deco: '#a8d070', build: ldLevel4 },
+  { name: 'DER LEVEL-TEUFEL', sky: ['#f8a0a0', '#c03a3a'], blk: '#4a0e0e', top: '#7a2020', deco: '#e88080', build: ldLevel5 },
+];
+const ldUnlocked = () => storeOK ? clamp(store.ldUnlocked || 1, 1, LD_LV.length) : LD_LV.length;
+const LD_BTNS = LD_LV.map((l, i) => ({ x: 62 + i * 54, y: 66, w: 48, h: 23 }));
+const LD_DOOR = { x: 8, y: 72, w: 46, h: 40 };                          // Teufelskopf „16“ auf der Teil-15-Seite
+// Bausteine für die Level
+function ldNew() { return { blocks: [], spikes: [], saws: [], trig: [], door: null, rev: false, laugh: 0, msg: '', msgT: 0, t: 0 }; }
+function ldB(L, x, y, w, h, o) { const b = Object.assign({ x, y, w, h }, o); L.blocks.push(b); return b; }
+function ldSpike(L, x, w, hidden, base = LD_FLOOR) { const s = { x, w, base, show: hidden ? 0 : 1, pop: false }; L.spikes.push(s); return s; }
+const ldOn = (L, cond, act) => L.trig.push({ cond, act, done: false });
+const ldFall = b => { b.mv = { tx: b.x, ty: VH + 40, v: 0, acc: 0.4, max: 8, gone: true }; };
+const ldDrop = (b, ty, acc = 0.6) => { b.mv = { tx: b.x, ty, v: 0, acc, max: 10 }; b.kill = true; };
+const ldMoveTo = (o, tx, ty, v) => { o.mv = { tx, ty, v, acc: 0, max: v }; };
+const ldSaw = (L, x, y, vx) => L.saws.push({ x, y, vx, vy: 0, r: 8, rot: 0 });
+function ldLaugh(L, msg) {                                                // der Teufel kichert bei jeder Falle
+  L.laugh = 0.8; if (msg) { L.msg = msg; L.msgT = 1.6; }
+  [392, 330, 392, 330].forEach((f, i) => tone(f, f * 0.95, 0.07, 'square', 0.03, i * 0.07));
+}
+function ldLevel1(L) {                                                    // Boden fällt weg, Stacheln, die Tür rennt zurück an den Anfang
+  ldB(L, 0, LD_FLOOR, 144, 32); const hole = ldB(L, 144, LD_FLOOR, 48, 32); ldB(L, 192, LD_FLOOR, 192, 32);
+  L.door = { x: 344, y: LD_FLOOR - 22 };
+  const s = ldSpike(L, 264, 32, true);
+  ldOn(L, p => p.x > 112, () => { ldFall(hole); ldLaugh(L); });
+  ldOn(L, p => p.x > 236, () => { s.pop = true; ldLaugh(L); });
+  ldOn(L, p => p.x > 316, () => { ldMoveTo(L.door, 40, L.door.y, 4); ldLaugh(L, 'DIE TÜR HAUT AB!'); });
+}
+function ldLevel2(L) {                                                    // Decken krachen runter, ein Brett über den Stacheln bröckelt
+  ldB(L, 0, LD_FLOOR, 384, 32);
+  ldB(L, 0, 0, 128, 24); const c1 = ldB(L, 128, 0, 32, 24); ldB(L, 160, 0, 152, 24); const c2 = ldB(L, 312, 0, 32, 24); ldB(L, 344, 0, 40, 24);
+  ldSpike(L, 192, 64, false);
+  ldB(L, 208, 152, 32, 10, { crumble: true });
+  L.door = { x: 354, y: LD_FLOOR - 22 };
+  ldOn(L, p => p.x > 96, () => { ldDrop(c1, LD_FLOOR - 24); ldLaugh(L, 'VORSICHT, DECKE!'); });
+  ldOn(L, p => p.x > 270 && p.on, () => { ldDrop(c2, LD_FLOOR - 24, 0.7); ldLaugh(L); });
+}
+function ldLevel3(L) {                                                    // die Tür flüchtet auf den Turm – und dann ganz zurück
+  ldB(L, 0, LD_FLOOR, 384, 32);
+  ldB(L, 272, 160, 32, 32); ldB(L, 304, 128, 32, 64); ldB(L, 336, 96, 48, 96);
+  L.door = { x: 200, y: LD_FLOOR - 22 };
+  const s = ldSpike(L, 128, 16, true);
+  ldOn(L, p => p.x > 150, () => { ldMoveTo(L.door, 356, 96 - 22, 3); ldLaugh(L, 'HIHI, FANG MICH DOCH!'); });
+  ldOn(L, (p, l) => l.trig[0].done && !l.door.mv && p.x > 316 && p.y < 100, () => { ldMoveTo(L.door, 24, LD_FLOOR - 22, 4); ldLaugh(L, 'DOCH NICHT! ZURÜCK!'); });
+  ldOn(L, (p, l) => l.trig[1].done && p.x < 190, () => { s.pop = true; ldLaugh(L); });
+}
+function ldLevel4(L) {                                                    // Säge fällt vom Himmel, Loch, Feder hoch zur Tür, Säge auf dem Sims
+  ldB(L, 0, LD_FLOOR, 176, 32); const hole = ldB(L, 176, LD_FLOOR, 48, 32); ldB(L, 224, LD_FLOOR, 160, 32);
+  ldB(L, 256, LD_FLOOR - 4, 16, 4, { spring: true });
+  ldB(L, 300, 80, 84, 12);
+  L.door = { x: 356, y: 80 - 22 };
+  ldOn(L, p => p.x > 50, () => { ldSaw(L, 140, -12, -2.5); ldLaugh(L, 'EINE SÄGE!'); });
+  ldOn(L, p => p.x > 150, () => { ldFall(hole); ldLaugh(L); });
+  ldOn(L, p => p.on && p.y < 80 && p.x > 290, () => { ldSaw(L, 392, 72, -2); ldLaugh(L); });
+}
+function ldLevel5(L) {                                                    // vertauschte Steuerung, Loch, Decke und eine hüpfende Tür
+  ldB(L, 0, LD_FLOOR, 208, 32); const hole = ldB(L, 208, LD_FLOOR, 48, 32); ldB(L, 256, LD_FLOOR, 128, 32);
+  ldB(L, 0, 0, 288, 24); const c = ldB(L, 288, 0, 32, 24); ldB(L, 320, 0, 64, 24);
+  ldSpike(L, 128, 16, false);
+  L.door = { x: 352, y: LD_FLOOR - 22 };
+  L.devil = true;
+  ldOn(L, p => p.x > 64, () => { L.rev = true; ldLaugh(L); });
+  ldOn(L, p => p.x > 176, () => { L.rev = false; ldLaugh(L, 'WIEDER NORMAL!'); });
+  ldOn(L, (p, l) => !l.rev && l.trig[1].done && p.x > 194, () => { ldFall(hole); ldLaugh(L); });
+  ldOn(L, p => p.x > 262 && p.on, () => { ldDrop(c, LD_FLOOR - 24, 0.7); ldLaugh(L); });
+  ldOn(L, p => p.x > 326, () => { ldMoveTo(L.door, 352, 128, 3); ldLaugh(L, 'SPRING HOCH!'); });
+}
+// ---------- Seite und Start
+function openPart16() {
+  G.state = 'part16'; G.stateT = 0; G.mode = 'story';
+  form.hidden = true; homeBtn.hidden = false;
+  G.p16 = { lock: null };
+  [294, 277, 262, 247, 233].forEach((f, i) => tone(f, f, 0.12, 'square', 0.04, i * 0.11));
+}
+function part16Click(pt) {
+  if (inBox(pt, PORTAL_BTN)) { openPart15(); return; }
+  const i = LD_BTNS.findIndex(bt => inBox(pt, bt));
+  if (i >= 0) playLD(i);
+}
+function playLD(i) {
+  if (i >= ldUnlocked()) { SFX.bump(); if (G.p16) G.p16.lock = { i, t: G.t }; return; }
+  G.ld = { lvl: i, deaths: 0, fx: [], t: 0, phase: 'play' };
+  ldStart(G.ld);
+  G.state = 'ld'; G.stateT = 0; form.hidden = true; homeBtn.hidden = false;
+}
+function ldStart(D) {                                                     // Level (neu) aufbauen – alle Fallen sind wieder scharf
+  D.L = ldNew(); LD_LV[D.lvl].build(D.L);
+  D.p = { x: 24, y: LD_FLOOR - 18, w: 12, h: 18, vx: 0, vy: 0, on: true, face: 1, coy: 0, buf: 0, anim: 0, spring: false };
+  D.phase = 'play'; D.t = 0;
+}
+const ldHit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+function ldStep(o) {                                                      // Block oder Tür fährt zum Ziel
+  const m = o.mv; m.v = Math.min(m.max, m.v + m.acc);
+  const dx = m.tx - o.x, dy = m.ty - o.y, d = Math.hypot(dx, dy);
+  if (d <= m.v) { o.x = m.tx; o.y = m.ty; if (m.gone) o.gone = true; o.mv = null; if (o.kill) { o.kill = false; G.ld.shake = 4; SFX.rock(); } return; }
+  o.x += dx / d * m.v; o.y += dy / d * m.v;
+}
+function ldDie(D, why) {
+  if (D.phase !== 'play') return;
+  D.phase = 'dead'; D.t = 0; D.deaths++; D.why = why; SFX.hurt();
+  const p = D.p;
+  for (let i = 0; i < 14; i++) D.fx.push({ x: p.x + 6, y: p.y + 8, vx: rnd(-2, 2), vy: rnd(-3.5, -0.5), life: 0.9, c: i % 3 ? '#f08a1c' : '#d62828' });
+}
+function updateLD() {
+  const D = G.ld; if (!D) return;
+  const L = D.L, p = D.p;
+  D.t += DT; L.t += DT; if (L.laugh > 0) L.laugh -= DT; if (L.msgT > 0) L.msgT -= DT; if (D.shake > 0) D.shake = Math.max(0, D.shake - 0.3);
+  for (const f of D.fx) { f.x += f.vx; f.y += f.vy; f.vy += 0.15; f.life -= DT; }
+  D.fx = D.fx.filter(f => f.life > 0);
+  if (pressed.esc) { openPart16(); return; }
+  if (D.phase === 'dead') { if (D.t > 0.8) ldStart(D); return; }
+  if (D.phase === 'win') { if (D.t > 1 && (pressed.enter || pressed.jump)) { if (D.lvl + 1 < LD_LV.length) playLD(D.lvl + 1); else openPart16(); } return; }
+  // Fallen auslösen
+  for (const tr of L.trig) if (!tr.done && tr.cond(p, L)) { tr.done = true; tr.act(); }
+  // Blöcke, Tür, Stacheln, Sägen bewegen
+  for (const b of L.blocks) {
+    if (b.gone) continue;
+    if (b.crumbleT > 0 && --b.crumbleT === 0) ldFall(b);
+    if (b.mv) { ldStep(b); if (b.kill && ldHit(p, b)) { ldDie(D, 'PLATT GEMACHT!'); return; } }
+  }
+  if (L.door.mv) ldStep(L.door);
+  for (const s of L.spikes) if (s.pop && s.show < 1) s.show = Math.min(1, s.show + 0.2);
+  const solid = L.blocks.filter(b => !b.gone);
+  for (const s of L.saws) {
+    s.vy = Math.min(s.vy + LD_G, 7); if (s.land) { s.x += s.vx; s.rot += s.vx * 0.12; } s.y += s.vy;   // erst landen, dann rollen
+    for (const b of solid) if (!b.spring && s.vy > 0 && s.x > b.x - 2 && s.x < b.x + b.w + 2 && s.y + s.r > b.y && s.y + s.r - s.vy <= b.y + 1) { s.y = b.y - s.r; s.vy = 0; s.land = true; }
+  }
+  L.saws = L.saws.filter(s => s.x > -30 && s.x < VW + 40 && s.y < VH + 30);
+  // Steuerung (im letzten Level zeitweise vertauscht!)
+  let dir = (K.right ? 1 : 0) - (K.left ? 1 : 0); if (L.rev) dir = -dir;
+  p.vx = dir * LD_SP; if (dir) p.face = dir;
+  if (pressed.jump) p.buf = 7; else if (p.buf > 0) p.buf--;
+  if (p.on) p.coy = 6; else if (p.coy > 0) p.coy--;
+  if (p.buf > 0 && p.coy > 0) { p.vy = -LD_JUMP; p.buf = 0; p.coy = 0; p.on = false; SFX.jump(); }
+  if (!K.jump && !p.spring && p.vy < -2.5) p.vy = -2.5;                   // kurz tippen = kleiner Hüpfer
+  if (p.vy >= 0) p.spring = false;
+  p.vy = Math.min(p.vy + LD_G, 7);
+  // bewegen und an Blöcken abprallen
+  p.x = clamp(p.x + p.vx, 0, VW - p.w);
+  for (const b of solid) if (ldHit(p, b)) {
+    if (p.on && b.y >= p.y + p.h - 6) { p.y = b.y - p.h; continue; }       // kleine Kanten (Feder) einfach hochsteigen
+    if (p.vx > 0) p.x = b.x - p.w; else if (p.vx < 0) p.x = b.x + b.w;
+  }
+  const wasOn = p.on; p.on = false; p.y += p.vy; let ground = null;
+  for (const b of solid) if (ldHit(p, b)) {
+    if (p.vy > 0) { p.y = b.y - p.h; p.vy = 0; p.on = true; ground = b; } else if (p.vy < 0) { p.y = b.y + b.h; p.vy = 0; }
+  }
+  if (ground && ground.spring) { p.vy = -9.5; p.on = false; p.spring = true; p.coy = 0; tone(300, 900, 0.18, 'square', 0.05); }   // Feder: ganz hoch!
+  if (ground && ground.crumble && !ground.crumbleT && !ground.mv) ground.crumbleT = 30;
+  if (p.on && !wasOn) for (let i = 0; i < 3; i++) D.fx.push({ x: p.x + 2 + i * 4, y: p.y + p.h, vx: rnd(-0.6, 0.6), vy: -0.5, life: 0.25, c: LD_LV[D.lvl].deco });
+  p.anim += Math.abs(p.vx) * 0.08;
+  // Gefahren
+  const hb = { x: p.x + 2, y: p.y + 3, w: p.w - 4, h: p.h - 3 };
+  for (const s of L.spikes) if (s.show > 0.3 && ldHit(hb, { x: s.x + 2, y: s.base - 9 * s.show, w: s.w - 4, h: 9 * s.show })) { ldDie(D, 'AUTSCH, STACHELN!'); return; }
+  for (const s of L.saws) if (Math.hypot(clamp(s.x, hb.x, hb.x + hb.w) - s.x, clamp(s.y, hb.y, hb.y + hb.h) - s.y) < s.r - 1) { ldDie(D, 'DIE SÄGE HAT DICH ERWISCHT!'); return; }
+  if (p.y > VH + 10) { ldDie(D, 'RUNTERGEFALLEN!'); return; }
+  // Tür erreicht (nur wenn sie gerade nicht wegläuft)
+  const dr = L.door;
+  if (!dr.mv && ldHit(hb, { x: dr.x + 3, y: dr.y + 3, w: 8, h: 19 })) {
+    D.phase = 'win'; D.t = 0; SFX.clear();
+    store.wallet = wallet() + 15;
+    store.ldBest = store.ldBest || {}; if (store.ldBest[D.lvl] == null || D.deaths < store.ldBest[D.lvl]) store.ldBest[D.lvl] = D.deaths;
+    if (D.lvl + 2 > (store.ldUnlocked || 1)) store.ldUnlocked = Math.min(LD_LV.length, D.lvl + 2);
+    if (D.lvl === LD_LV.length - 1) store.ldWon = true;
+    saveStore();
+  }
+}
+// ---------- Zeichnen
+function ldDevil(x, y, s, laugh) {                                        // kleiner roter Teufel mit Hörnern (s = Pixelgröße)
+  const r = (a, b, w, h, c) => rect(x + a * s, y + b * s, w * s, h * s, c);
+  r(1, 0, 2, 3, '#ffd8a0'); r(9, 0, 2, 3, '#ffd8a0'); r(2, -1, 1, 1, '#ffd8a0'); r(9, -1, 1, 1, '#ffd8a0');   // Hörner
+  r(1, 2, 10, 8, '#d62828'); r(0, 3, 12, 6, '#d62828'); r(2, 10, 8, 1, '#d62828');
+  r(3, 4, 2, 2, '#ffd23f'); r(7, 4, 2, 2, '#ffd23f'); r(4, 4, 1, 1, '#14141c'); r(8, 4, 1, 1, '#14141c');
+  r(2, 3, 3, 1, '#7a0e0e'); r(7, 3, 3, 1, '#7a0e0e');                                                             // böse Augenbrauen
+  if (laugh) { r(3, 7, 6, 2, '#3a0606'); r(4, 7, 1, 1, '#ffffff'); r(7, 7, 1, 1, '#ffffff'); }
+  else { r(3, 7, 6, 1, '#3a0606'); r(2, 6, 1, 1, '#3a0606'); r(9, 6, 1, 1, '#3a0606'); }
+}
+function ldSpikes(x, base, w, show, col) {
+  if (show <= 0) return;
+  ctx.fillStyle = col;
+  for (let k = 0; k + 8 <= w; k += 8) { ctx.beginPath(); ctx.moveTo(x + k, base); ctx.lineTo(x + k + 4, base - 10 * show); ctx.lineTo(x + k + 8, base); ctx.closePath(); ctx.fill(); }
+}
+function drawLD() {
+  const D = G.ld, L = D.L, lv = LD_LV[D.lvl], p = D.p;
+  for (let i = 0; i < 14; i++) rect(0, i * VH / 14, VW, Math.ceil(VH / 14) + 1, lerpColor(lv.sky[0], lv.sky[1], i / 13));
+  for (let k = 0; k < 6; k++) { const x = (k * 71 + 20) % VW, h = 40 + (k * 37) % 60; rect(x, LD_FLOOR - h, 22, h, lv.deco); rect(x + 4, LD_FLOOR - h - 6, 14, 6, lv.deco); }   // ruhige Säulen im Hintergrund
+  ctx.save(); if (D.shake > 0) ctx.translate(0, Math.round(D.shake * 0.5));
+  for (const b of L.blocks) {
+    if (b.gone) continue;
+    if (b.spring) { rect(b.x + 2, b.y - 2, b.w - 4, 2, '#9a9a9a'); rect(b.x, b.y, b.w, b.h, '#6dd64a'); rect(b.x, b.y + b.h - 1, b.w, 1, '#3a8a24'); continue; }
+    rect(b.x, b.y, b.w, b.h, lv.blk); rect(b.x, b.y, b.w, 2, lv.top);
+    if (b.crumble) { rect(b.x, b.y, b.w, b.h, '#8a6a4a'); rect(b.x, b.y, b.w, 2, '#b8946a'); if (b.crumbleT > 0) { const k = 1 - b.crumbleT / 30; rect(b.x + 8, b.y + 2, 1, Math.round(6 * k) + 1, '#3a2a1a'); rect(b.x + 20, b.y + 3, 1, Math.round(5 * k) + 1, '#3a2a1a'); rect(b.x + 12, b.y + 5, Math.round(8 * k), 1, '#3a2a1a'); } }
+  }
+  for (const s of L.spikes) ldSpikes(s.x, s.base, s.w, s.show, '#1a0a06');
+  const d = L.door;                                                       // Tür: schwarzer Eingang mit hellem Rahmen
+  rect(d.x - 2, d.y - 2, 18, 24, '#fff2d8'); rect(d.x, d.y, 14, 22, '#14080a'); rect(d.x + 10, d.y + 11, 2, 2, '#ffd23f');
+  for (const s of L.saws) {
+    ctx.save(); ctx.translate(Math.round(s.x), Math.round(s.y)); ctx.rotate(s.rot);
+    ctx.fillStyle = '#b8b8c0'; ctx.beginPath(); ctx.arc(0, 0, s.r - 2, 0, Math.PI * 2); ctx.fill();
+    for (let k = 0; k < 8; k++) { ctx.rotate(Math.PI / 4); ctx.fillRect(-1.5, -s.r, 3, 3); }
+    ctx.fillStyle = '#5a5a64'; ctx.fillRect(-2, -2, 4, 4);
+    ctx.restore();
+  }
+  if (D.phase !== 'dead') {
+    const set = SPR_PLAYER[!p.on ? 'jump' : Math.abs(p.vx) > 0.1 ? ['walk1', 'idle', 'walk2', 'idle'][Math.floor(p.anim * 2) % 4] : 'idle'];
+    ctx.drawImage(p.face > 0 ? set.r : set.l, Math.round(p.x - 2), Math.round(p.y - 1));
+  }
+  for (const f of D.fx) rect(f.x, f.y, 3, 3, f.c);
+  ctx.restore();
+  if (L.devil) ldDevil(178, 30 + Math.round(Math.sin(L.t * 1.5) * 2), 2, L.laugh > 0);
+  // Anzeige
+  text(`TODE: ${D.deaths}`, 8, L.devil || D.lvl === 1 ? 28 : 6, 8, '#fff7e0', 'left', '#000');
+  if (D.t < 2.5 && D.phase === 'play' && D.deaths === 0) { ctx.save(); ctx.globalAlpha = clamp(2.5 - D.t, 0, 1); text(`LEVEL ${D.lvl + 1}: ${lv.name}`, VW / 2, 70, 16, '#ffffff', 'center', '#000'); ctx.restore(); }
+  if (L.rev) text('STEUERUNG VERTAUSCHT!', VW / 2, 60, 8, '#ffd23f', 'center', '#000');
+  else if (L.msgT > 0) text(L.msg, VW / 2, 60, 8, '#ffffff', 'center', '#000');
+  if (D.phase === 'dead') text(D.why || 'HOPPLA!', VW / 2, 90, 16, '#ffffff', 'center', '#000');
+  if (D.phase === 'win') {
+    const best = store.ldBest ? store.ldBest[D.lvl] : D.deaths;
+    centerPanel([['GESCHAFFT!', 16, '#6dd64a'], ['', 8, '#fff'], [D.deaths === 0 ? 'OHNE EINMAL ZU STERBEN! WOW!' : `DU BIST ${D.deaths}× GESTORBEN`, 8, '#fff7e0'], [`REKORD: ${best} TODE · +15 MÜNZEN`, 8, '#ffd23f'], ['', 8, '#fff'],
+      [D.lvl + 1 < LD_LV.length ? 'LEERTASTE = NÄCHSTES LEVEL' : 'DU HAST DEN LEVEL-TEUFEL BESIEGT!', 8, '#ffd23f']]);
+  }
+}
+function drawPart16() {
+  const S = G.p16 || {};
+  for (let i = 0; i < 14; i++) rect(0, i * VH / 14, VW, Math.ceil(VH / 14) + 1, lerpColor('#f8b07a', '#c0402a', i / 13));
+  for (let k = 0; k < 7; k++) { const x = (k * 61 + 10) % VW, h = 30 + (k * 29) % 50; rect(x, 186 - h, 20, h, '#e08060'); }
+  rect(0, 186, VW, 38, '#5a2412'); rect(0, 186, VW, 3, '#8a4026');
+  ldSpikes(150, 186, 24, 1, '#1a0a06');
+  rect(298, 162, 18, 24, '#fff2d8'); rect(300, 164, 14, 22, '#14080a');   // die Tür
+  const run = (G.t * 40) % 300;                                           // der Kürbis läuft – und hüpft über die Stacheln
+  const px = 20 + run, py = 186 - 18 - (px > 128 && px < 186 ? Math.sin((px - 128) / 58 * Math.PI) * 30 : 0);
+  if (px < 296) ctx.drawImage(SPR_PLAYER[px > 128 && px < 186 ? 'jump' : Math.floor(G.t * 8) % 2 ? 'walk1' : 'walk2'].r, Math.round(px), Math.round(py));
+  ldDevil(334, 132 + Math.round(Math.sin(G.t * 1.5) * 3), 3, Math.sin(G.t * 0.8) > 0.5);
+  text('KÜRBIS-ABENTEUER', VW / 2 + 1, 10, 16, '#f08a1c', 'center', '#3a1a05');
+  text('TEIL 16', VW / 2, 30, 16, '#ff5a4a', 'center', '#3a0606');
+  text('DER LEVEL-TEUFEL', VW / 2, 48, 8, '#fff7e0', 'center', '#000');
+  const un = ldUnlocked(), best = store.ldBest || {}, lock = S.lock && G.t - S.lock.t < 1.5 ? S.lock : null;
+  LD_BTNS.forEach((bt, i) => {
+    const open = i < un;
+    rect(bt.x, bt.y, bt.w, bt.h, open ? 'rgba(74,14,14,.92)' : 'rgba(40,30,30,.85)');
+    const e = open ? '#ff8a6a' : '#6a5a5a';
+    rect(bt.x, bt.y, bt.w, 1, e); rect(bt.x, bt.y + bt.h - 1, bt.w, 1, e); rect(bt.x, bt.y, 1, bt.h, e); rect(bt.x + bt.w - 1, bt.y, 1, bt.h, e);
+    text(String(i + 1), bt.x + bt.w / 2, bt.y + 2, 8, open ? '#ffffff' : '#8a7a7a', 'center', null);
+    text(!open ? 'ZU' : best[i] != null ? `${best[i]} TODE` : 'LEVEL', bt.x + bt.w / 2, bt.y + 12, 8, open ? '#ffd23f' : '#8a7a7a', 'center', null);
+  });
+  if (lock) text(`ERST LEVEL ${lock.i} SCHAFFEN!`, VW / 2, 98, 8, '#ffffff', 'center', '#000');
+  else if (store.ldWon) text('DU HAST DEN LEVEL-TEUFEL BESIEGT! ★', VW / 2, 98, 8, '#ffd23f', 'center', '#000');
+  else text('KLICK ODER 1-5 = LEVEL STARTEN', VW / 2, 98, 8, '#fff7e0', 'center', '#000');
+  text('NICHTS IST, WIE ES SCHEINT! STIRB, MERK DIR DIE FALLE,', VW / 2, 112, 8, '#fff7e0', 'center', '#000');
+  text('UND VERSUCH ES NOCHMAL. LEERTASTE = SPRINGEN', VW / 2, 123, 8, '#fff7e0', 'center', '#000');
+  drawPortal(PORTAL_BTN, '15', 'TEIL 15');
+  text('PORTAL = TEIL 15 · H = TEIL 1', VW / 2, 212, 8, '#fff7e0', 'center', '#000');
+}
+function drawLDDoor() {                                                   // Teufelskopf „16“ auf der Teil-15-Seite
+  const b = LD_DOOR;
+  ldDevil(b.x + 11, b.y + 6, 2, false);
+  text('16', b.x + b.w / 2, b.y + 30, 8, '#ffd23f', 'center', '#3a0606');
+  text('TEIL 16', b.x + b.w / 2, b.y + b.h + 4, 8, '#ffd23f', 'center', '#000');
 }
 function drawMegaBoss(b, fl) {
   const cx = b.x + b.w / 2, set = SPR_PLAYER.idle;
