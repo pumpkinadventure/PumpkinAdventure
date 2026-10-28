@@ -1,4 +1,5 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Kürbis-Abenteuer</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -106,7 +107,37 @@ kbd {
 }
 .touch button.act { border-color: var(--pumpkin); color: var(--ember); }
 .touch button:active, .touch button.on { transform: translateY(2px); border-bottom-width: 3px; }
-@media (pointer: coarse) { .touch { display: flex; } }
+/* Handy und Tablet: Touch-Buttons, keine Tastenliste */
+.touch .nums button { width: 44px; height: 44px; font-size: 15px; }
+.rotate-hint { display: none; text-align: center; color: var(--muted); font-size: 13px; margin: 0; }
+@media (pointer: coarse) {
+  html, body { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .touch { display: flex; flex-wrap: wrap; }
+  .touch button { -webkit-touch-callout: none; }
+  .keys, header p { display: none; }
+  .cab { max-width: min(1152px, max(300px, calc((100svh - 190px) * 1.7143))); gap: 10px; }
+  .touch .grp { flex-wrap: wrap; justify-content: flex-end; }
+}
+@media (pointer: coarse) and (orientation: portrait) { .rotate-hint { display: block; } }
+@media (max-width: 560px) {                                             /* schmale Handys: Startfeld kompakter */
+  .start { font-size: 10px; padding: 4px 6px; gap: 3px 6px; bottom: 2%; }
+  .start input, .start select, .start button { padding: 1px 4px; }
+  .start input { width: 6.5em; }
+  .start select { max-width: 44vw; }
+}
+@media (pointer: coarse) and (orientation: landscape) {
+  .wrap { padding-block: 6px; }
+  header { display: none; }
+  .cab { max-width: min(1152px, calc((100svh - 28px) * 1.7143), calc(100vw - 272px)); }
+  /* Buttons links und rechts neben dem Spielfeld (je 2 Spalten) */
+  .touch { position: fixed; inset: auto 0 8px 0; padding: 0 max(8px, env(safe-area-inset-right, 0px)) 0 max(8px, env(safe-area-inset-left, 0px)); pointer-events: none; z-index: 5; align-items: flex-end; }
+  .touch > .grp { pointer-events: auto; width: 124px; gap: 8px; }
+  .touch .move { width: 124px; gap: 8px; justify-content: space-between; }
+  .touch #bDown { order: -1; margin: 0 35px; }
+  .touch button { width: 54px; height: 54px; opacity: .85; }
+  .touch .nums { width: 124px; gap: 4px; justify-content: space-between; }
+  .touch .nums button { width: 28px; height: 32px; font-size: 13px; }
+}
 button:focus-visible, canvas:focus-visible { outline: 3px solid var(--ember); outline-offset: 2px; }
 </style>
 
@@ -149,16 +180,27 @@ button:focus-visible, canvas:focus-visible { outline: 3px solid var(--ember); ou
         <button type="submit" id="goBtn">Los!</button>
       </form>
     </div>
+    <p class="rotate-hint">Tipp: Halte dein Handy quer, dann wird das Spiel größer!</p>
     <div class="touch" id="touch">
       <div class="grp">
-        <button id="bL" data-k="left" aria-label="Nach links">◀</button>
-        <button id="bR" data-k="right" aria-label="Nach rechts">▶</button>
+        <div class="grp move">
+          <button id="bL" data-k="left" aria-label="Nach links">◀</button>
+          <button id="bDown" data-k="down" aria-label="Ducken / nach unten" hidden>▼</button>
+          <button id="bR" data-k="right" aria-label="Nach rechts">▶</button>
+        </div>
       </div>
       <div class="grp">
+        <div class="grp nums" id="bNums" hidden>
+          <button data-k="one" aria-label="1">1</button>
+          <button data-k="two" aria-label="2">2</button>
+          <button data-k="three" aria-label="3">3</button>
+          <button data-k="four" aria-label="4">4</button>
+        </div>
         <button id="bStart" data-k="enter" aria-label="Weiter">OK</button>
-        <button id="bQ" class="act" data-k="bow" aria-label="Schlangenbogen" hidden>Q</button>
+        <button id="bRun" data-k="run" aria-label="Rennen / Dash" hidden>»</button>
+        <button id="bQ" class="act" data-k="bow" aria-label="Bogen / Spezial" hidden>Q</button>
         <button id="bS" class="act" data-k="super" aria-label="Superattacke">R</button>
-        <button id="bE" class="act" data-k="punch" aria-label="Schlagen">E</button>
+        <button id="bE" class="act" data-k="punch" aria-label="Schlagen / Schießen">E</button>
         <button id="bJ" class="act" data-k="jump" aria-label="Springen">▲</button>
       </div>
     </div>
@@ -1503,7 +1545,7 @@ document.addEventListener('webkitfullscreenchange', fsLabel);
 
 document.querySelectorAll('#touch button').forEach(btn => {
   const k = btn.dataset.k;
-  const down = e => { e.preventDefault(); btn.setPointerCapture?.(e.pointerId); btn.classList.add('on'); press(k); };
+  const down = e => { e.preventDefault(); try { btn.setPointerCapture(e.pointerId); } catch (_) { /* nicht schlimm */ } btn.classList.add('on'); press(k); };
   const up = () => { btn.classList.remove('on'); release(k); };
   btn.addEventListener('pointerdown', down);
   btn.addEventListener('pointerup', up);
@@ -1512,6 +1554,21 @@ document.querySelectorAll('#touch button').forEach(btn => {
   btn.addEventListener('contextmenu', e => e.preventDefault());
 });
 const bQ = document.getElementById('bQ');
+const tb = id => document.getElementById(id);
+const TOUCH = { down: tb('bDown'), run: tb('bRun'), nums: tb('bNums'), sup: tb('bS'), e: tb('bE') };
+function syncTouch() {                                                  // nur die Buttons zeigen, die man gerade braucht
+  const st = G.state, mc = st.startsWith('mc'), play = st === 'play' || st === 'ch' || mc, fight = isFight() && st === 'play';
+  const plane = st === 'ch' && G.ch && G.ch.plane;
+  const show = {
+    down: fight || st === 'ch' || st === 'au' || mc || st === 'part4',
+    run: play,
+    nums: fight || (st === 'ch' && !plane),
+    sup: play && !mc,
+    e: play || st === 'au',
+    q: G.bow || fight || st === 'ch' || G.mode === 'versus' || mc,
+  };
+  for (const [el, on] of [[TOUCH.down, show.down], [TOUCH.run, show.run], [TOUCH.nums, show.nums], [TOUCH.sup, show.sup], [TOUCH.e, show.e], [bQ, show.q]]) if (el.hidden === on) el.hidden = !on;
+}
 
 // ============================================================ Start-Formular (Name)
 const form = document.getElementById('startForm'), nameIn = document.getElementById('nameIn'), lvlSel = document.getElementById('lvlSel');
@@ -4180,6 +4237,7 @@ function updateCamera() {
 let titleCam = 0;
 function step() {
   G.t += DT; G.stateT += DT;
+  syncTouch();
   switch (G.state) {
     case 'title':
       titleCam += 0.35;
