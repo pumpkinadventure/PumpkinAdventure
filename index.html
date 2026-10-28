@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Kürbis-Abenteuer</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -137,6 +137,7 @@ kbd {
   /* Spielfeld füllt den ganzen Bildschirm, die Buttons liegen halbdurchsichtig darüber */
   .screen { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; max-width: none; aspect-ratio: auto; border: 0; box-shadow: none; }
   .screen:focus-within { box-shadow: none; }
+  .screen { touch-action: none; }
   canvas { object-fit: contain; }
   .start { max-width: calc(100vw - 310px); font-size: 11px; padding: 5px 8px; gap: 4px 8px; bottom: 3%; }
   .start select { max-width: 100%; }
@@ -1564,6 +1565,9 @@ document.getElementById('fsHintOk').addEventListener('click', () => { fsHint.hid
 if (touchUI.matches && !canFull() && !isApp()) {                          // beim ersten Besuch am iPhone einmal zeigen
   try { if (!localStorage.getItem('kuerbis-fshint')) fsHint.hidden = false; } catch (e) { /* egal */ }
 }
+// Am Handy nicht zoomen (Doppeltippen, zwei Finger, Tippen ins Namensfeld)
+['gesturestart', 'gesturechange', 'gestureend', 'dblclick'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
+document.addEventListener('touchmove', e => { if (e.touches.length > 1 || e.scale && e.scale !== 1) e.preventDefault(); }, { passive: false });
 (() => {                                                                  // Kürbis-Symbol für den Home-Bildschirm
   const c = document.createElement('canvas'); c.width = c.height = 180;
   const x = c.getContext('2d'), r = (a, b, w, h, col) => { x.fillStyle = col; x.fillRect(a, b, w, h); };
